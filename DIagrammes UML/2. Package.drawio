@@ -10,14 +10,17 @@
         <mxCell id="d1RUCJSTXEI61DRY485o-14" value="SYSTEM" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="d1RUCJSTXEI61DRY485o-2" vertex="1">
           <mxGeometry x="280" width="70" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="n8nITJoyGM5a05yIWS15-3" value="Système embarqué" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" vertex="1" parent="d1RUCJSTXEI61DRY485o-2">
-          <mxGeometry x="30" y="60" width="80" height="60" as="geometry" />
+        <mxCell id="n8nITJoyGM5a05yIWS15-3" value="Position GPS" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" parent="d1RUCJSTXEI61DRY485o-2" vertex="1">
+          <mxGeometry x="30" y="60" width="90" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="n8nITJoyGM5a05yIWS15-2" value="Bluetooth Low Energy (BLE)" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" vertex="1" parent="d1RUCJSTXEI61DRY485o-2">
-          <mxGeometry x="230" y="60" width="80" height="60" as="geometry" />
+        <mxCell id="n8nITJoyGM5a05yIWS15-2" value="Assistance GPS" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" parent="d1RUCJSTXEI61DRY485o-2" vertex="1">
+          <mxGeometry x="230" y="60" width="90" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="n8nITJoyGM5a05yIWS15-1" value="Application mobile" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" vertex="1" parent="d1RUCJSTXEI61DRY485o-2">
-          <mxGeometry x="30" y="180" width="80" height="60" as="geometry" />
+        <mxCell id="n8nITJoyGM5a05yIWS15-1" value="Détection des obstacles" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" parent="d1RUCJSTXEI61DRY485o-2" vertex="1">
+          <mxGeometry x="30" y="180" width="90" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="gm4Z31UhsVIO_9wSpmHV-1" value="Envoie de messages" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" vertex="1" parent="d1RUCJSTXEI61DRY485o-2">
+          <mxGeometry x="230" y="180" width="90" height="60" as="geometry" />
         </mxCell>
         <mxCell id="d1RUCJSTXEI61DRY485o-3" value="Système GPS" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
           <mxGeometry x="730" y="470" width="30" height="60" as="geometry" />
