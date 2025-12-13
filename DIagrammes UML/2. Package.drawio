@@ -19,7 +19,7 @@
         <mxCell id="n8nITJoyGM5a05yIWS15-1" value="Détection des obstacles" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" parent="d1RUCJSTXEI61DRY485o-2" vertex="1">
           <mxGeometry x="30" y="180" width="90" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="gm4Z31UhsVIO_9wSpmHV-1" value="Envoie de messages" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" vertex="1" parent="d1RUCJSTXEI61DRY485o-2">
+        <mxCell id="gm4Z31UhsVIO_9wSpmHV-1" value="Envoie de messages" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;" parent="d1RUCJSTXEI61DRY485o-2" vertex="1">
           <mxGeometry x="230" y="180" width="90" height="60" as="geometry" />
         </mxCell>
         <mxCell id="d1RUCJSTXEI61DRY485o-3" value="Système GPS" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
@@ -56,6 +56,18 @@
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="160" y="510" as="sourcePoint" />
             <mxPoint x="250" y="509.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZiL_9k0uUKZDrETdyRat-3" value="" style="endArrow=none;html=1;rounded=0;entryX=0.75;entryY=0.1;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="d1RUCJSTXEI61DRY485o-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="740" y="480" as="sourcePoint" />
+            <mxPoint x="790" y="430" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZiL_9k0uUKZDrETdyRat-4" value="" style="endArrow=none;html=1;rounded=0;entryX=0.75;entryY=0.1;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="d1RUCJSTXEI61DRY485o-4">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="740" y="300" as="sourcePoint" />
+            <mxPoint x="790" y="250" as="targetPoint" />
           </mxGeometry>
         </mxCell>
       </root>
