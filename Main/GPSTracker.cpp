@@ -1,5 +1,5 @@
 // ============================================
-// GPSTracker.cpp - Implémentation GPS uniquement
+// GPSTracker.cpp - Implémentation GPS complète
 // ============================================
 #include "GPSTracker.h"
 #include "Logger.h"
@@ -20,6 +20,8 @@ void GPSTracker::init() {
     // Commande AT pour réinitialiser le GPS
     sendAT("AT+CGPSRST=1");
     delay(1000);
+    
+    Logger::info("GPS initialisé");
 }
 
 // Arrête le module GPS
@@ -38,40 +40,98 @@ bool GPSTracker::isReady() const {
     return ready;
 }
 
-// Met à jour la position GPS
+// Met à jour les données GPS
 void GPSTracker::update() {
-    // Lit la position GPS
+    // Lit et parse les données GPS
     readGPS();
 }
 
-// Lit et parse les données GPS du module SIM808
+// Lit et parse les données GPS complètes du module SIM808
 bool GPSTracker::readGPS() {
-    // Demande les informations GPS au module (mode 0 = format court)
-    sendAT("AT+CGPSINF=0");
-    String rep = readResponse();
+    // Demande les informations GPS complètes (mode 32 = toutes les données)
+    sendAT("AT+CGPSINF=32");
+    String response = readResponse();
 
     // Vérifie si la réponse contient des données GPS
-    if (rep.indexOf("+CGPSINF:") >= 0) {
-        // Parse la chaîne de réponse pour extraire longitude et latitude
-        // Format: +CGPSINF: mode,longitude,latitude,altitude,...
-        int idx1 = rep.indexOf(',');           // Trouve la 1ère virgule
-        int idx2 = rep.indexOf(',', idx1 + 1); // Trouve la 2ème virgule
-        int idx3 = rep.indexOf(',', idx2 + 1); // Trouve la 3ème virgule
-
-        // Extraction et conversion en float
-        position.longitude = rep.substring(idx1 + 1, idx2).toFloat();
-        position.latitude  = rep.substring(idx2 + 1, idx3).toFloat();
-
-        // Vérifie que les coordonnées ne sont pas nulles (position valide)
-        position.isValid = (position.latitude != 0 && position.longitude != 0);
-        return position.isValid;
+    if (response.indexOf("+CGPSINF:") >= 0) {
+        parseGPSInfo(response);
+        return gpsData.isValid;
     }
+    
+    // Si pas de données valides, marque comme invalide
+    gpsData.isValid = false;
+    gpsData.fixType = "No Fix";
     return false;
 }
 
-// Retourne la position GPS actuelle
-GPSPosition GPSTracker::getPosition() const {
-    return position;
+// Parse la réponse GPS complète
+void GPSTracker::parseGPSInfo(const String& response) {
+    // Format de la réponse CGPSINF:
+    // +CGPSINF: mode,longitude,latitude,altitude,utc_time,ttff,satellites,speed,course
+    
+    int startIdx = response.indexOf("+CGPSINF:") + 10;
+    String data = response.substring(startIdx);
+    
+    // Tableau pour stocker les valeurs parsées
+    String values[9];
+    int valueIndex = 0;
+    int lastComma = -1;
+    
+    // Parse chaque valeur séparée par des virgules
+    for (int i = 0; i < data.length() && valueIndex < 9; i++) {
+        if (data[i] == ',' || data[i] == '\r' || data[i] == '\n') {
+            values[valueIndex++] = data.substring(lastComma + 1, i);
+            lastComma = i;
+        }
+    }
+    
+    // Extraction des données
+    int mode = values[0].toInt();
+    gpsData.longitude = values[1].toFloat();
+    gpsData.latitude = values[2].toFloat();
+    gpsData.altitude = values[3].toFloat();
+    gpsData.gpsTimestamp = values[4];  // Format: yyyyMMddHHmmss.sss
+    // values[5] = TTFF (Time To First Fix) - pas utilisé
+    gpsData.satellitesCount = values[6].toInt();
+    gpsData.speed = values[7].toFloat();      // en km/h
+    gpsData.heading = values[8].toFloat();    // course/direction en degrés
+    
+    // Détermine le type de fix selon le mode
+    if (mode == 0) {
+        gpsData.fixType = "No Fix";
+        gpsData.isValid = false;
+    } else if (mode == 1) {
+        gpsData.fixType = "2D Fix";
+        gpsData.isValid = (gpsData.latitude != 0 && gpsData.longitude != 0);
+    } else if (mode >= 2) {
+        gpsData.fixType = "3D Fix";
+        gpsData.isValid = (gpsData.latitude != 0 && gpsData.longitude != 0);
+    }
+    
+    // Calcul approximatif du HDOP (Horizontal Dilution of Precision)
+    // Plus le nombre de satellites est élevé, meilleur est le HDOP
+    if (gpsData.satellitesCount >= 8) {
+        gpsData.hdop = 1.0;  // Excellent
+    } else if (gpsData.satellitesCount >= 6) {
+        gpsData.hdop = 2.0;  // Bon
+    } else if (gpsData.satellitesCount >= 4) {
+        gpsData.hdop = 5.0;  // Moyen
+    } else {
+        gpsData.hdop = 99.9; // Mauvais
+    }
+    
+    // Log des données pour debug
+    if (gpsData.isValid) {
+        Logger::info("GPS: Lat=" + String(gpsData.latitude, 6) + 
+                     " Lon=" + String(gpsData.longitude, 6) + 
+                     " Sats=" + String(gpsData.satellitesCount) +
+                     " Fix=" + gpsData.fixType);
+    }
+}
+
+// Retourne toutes les données GPS
+GPSData GPSTracker::getGPSData() const {
+    return gpsData;
 }
 
 // Envoie une commande AT au module SIM808

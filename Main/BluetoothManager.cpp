@@ -1,8 +1,7 @@
 // ============================================
-// BluetoothManager.cpp - Implémentation BLE
+// BluetoothManager.cpp - Implémentation BLE complète
 // ============================================
 #include "BluetoothManager.h"
-#include "Logger.h"
 #include "Config.h"
 
 // Constructeur
@@ -30,29 +29,29 @@ void BluetoothManager::init() {
     );
     pGPSCharacteristic->addDescriptor(new BLE2902());
     
-    // ===== Caractéristique Statut =====
-    pStatusCharacteristic = pService->createCharacteristic(
-        STATUS_CHARACTERISTIC_UUID,
+    // ===== Caractéristique Capteur d'Eau =====
+    pWaterCharacteristic = pService->createCharacteristic(
+        WATER_SENSOR_CHARACTERISTIC_UUID,
         BLECharacteristic::PROPERTY_READ | 
         BLECharacteristic::PROPERTY_NOTIFY
     );
-    pStatusCharacteristic->addDescriptor(new BLE2902());
+    pWaterCharacteristic->addDescriptor(new BLE2902());
     
-    // ===== Caractéristique Batterie =====
-    pBatteryCharacteristic = pService->createCharacteristic(
-        BATTERY_CHARACTERISTIC_UUID,
+    // ===== Caractéristique Obstacles =====
+    pObstacleCharacteristic = pService->createCharacteristic(
+        OBSTACLE_CHARACTERISTIC_UUID,
         BLECharacteristic::PROPERTY_READ | 
         BLECharacteristic::PROPERTY_NOTIFY
     );
-    pBatteryCharacteristic->addDescriptor(new BLE2902());
+    pObstacleCharacteristic->addDescriptor(new BLE2902());
     
-    // ===== Caractéristique SOS =====
-    pSOSCharacteristic = pService->createCharacteristic(
-        SOS_CHARACTERISTIC_UUID,
+    // ===== Caractéristique IMU =====
+    pImuCharacteristic = pService->createCharacteristic(
+        IMU_CHARACTERISTIC_UUID,
         BLECharacteristic::PROPERTY_READ | 
         BLECharacteristic::PROPERTY_NOTIFY
     );
-    pSOSCharacteristic->addDescriptor(new BLE2902());
+    pImuCharacteristic->addDescriptor(new BLE2902());
     
     // Démarre le service
     pService->start();
@@ -61,7 +60,7 @@ void BluetoothManager::init() {
     BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(SERVICE_UUID);
     pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06);  // Aide avec les problèmes de connexion iPhone
+    pAdvertising->setMinPreferred(0x06);
     pAdvertising->setMinPreferred(0x12);
     BLEDevice::startAdvertising();
     
@@ -120,79 +119,95 @@ void BluetoothManager::update() {
     }
 }
 
-// Envoie les données GPS via BLE
+// Envoie les données GPS complètes via BLE
 void BluetoothManager::sendGPSData() {
     if (!deviceConnected) {
         Logger::warn("Aucun client BLE connecté");
         return;
     }
     
-    // Récupère la position GPS actuelle
-    GPSPosition pos = gps.getPosition();
+    // Récupère toutes les données GPS
+    GPSData gpsData = gps.getGPSData();
     
-    if (!pos.isValid) {
-        Logger::warn("Position GPS invalide - Envoi annulé");
+    if (!gpsData.isValid) {
+        Logger::warn("Données GPS invalides - Envoi annulé");
         return;
     }
     
-    // Formate les données GPS en JSON
-    String gpsData = "{";
-    gpsData += "\"lat\":" + String(pos.latitude, 6) + ",";
-    gpsData += "\"lon\":" + String(pos.longitude, 6) + ",";
-    gpsData += "\"alt\":" + String(pos.altitude, 2) + ",";
-    gpsData += "\"valid\":true";
-    gpsData += "}";
+    // Formate les données GPS en JSON selon le format attendu par l'application
+    String jsonData = "{";
+    jsonData += "\"latitude\":" + String(gpsData.latitude, 6) + ",";
+    jsonData += "\"longitude\":" + String(gpsData.longitude, 6) + ",";
+    jsonData += "\"altitude\":" + String(gpsData.altitude, 2) + ",";
+    jsonData += "\"speed\":" + String(gpsData.speed, 2) + ",";
+    jsonData += "\"heading\":" + String(gpsData.heading, 2) + ",";
+    jsonData += "\"satellitesCount\":" + String(gpsData.satellitesCount) + ",";
+    jsonData += "\"hdop\":" + String(gpsData.hdop, 2) + ",";
+    jsonData += "\"gpsTimestamp\":\"" + gpsData.gpsTimestamp + "\",";
+    jsonData += "\"fixType\":\"" + gpsData.fixType + "\"";
+    jsonData += "}";
     
     // Envoie via la caractéristique BLE
-    pGPSCharacteristic->setValue(gpsData.c_str());
+    pGPSCharacteristic->setValue(jsonData.c_str());
     pGPSCharacteristic->notify(); // Notifie le client
     
-    Logger::info("GPS envoyé via BLE: Lat=" + String(pos.latitude, 6) + 
-                 " Lon=" + String(pos.longitude, 6));
+    Logger::info("GPS envoyé via BLE: Lat=" + String(gpsData.latitude, 6) + 
+                 " Lon=" + String(gpsData.longitude, 6) + 
+                 " Sats=" + String(gpsData.satellitesCount));
 }
 
-// Envoie les données de statut
-void BluetoothManager::sendStatusData(const String& status) {
+// Envoie les données du capteur d'eau via BLE
+void BluetoothManager::sendWaterSensorData(const WaterSensorData& data) {
     if (!deviceConnected) return;
     
-    // Formate le statut en JSON
-    String statusData = "{\"status\":\"" + status + "\"}";
+    // Formate les données en JSON selon le format attendu
+    String jsonData = "{";
+    jsonData += "\"humidityLevel\":" + String(data.humidityLevel, 2) + ",";
+    jsonData += "\"rawData\":" + String(data.rawData);
+    jsonData += "}";
     
     // Envoie via BLE
-    pStatusCharacteristic->setValue(statusData.c_str());
-    pStatusCharacteristic->notify();
+    pWaterCharacteristic->setValue(jsonData.c_str());
+    pWaterCharacteristic->notify();
     
-    Logger::info("Statut envoyé via BLE: " + status);
+    Logger::info("Capteur eau envoyé via BLE: " + String(data.humidityLevel) + "%");
 }
 
-// Envoie le niveau de batterie
-void BluetoothManager::sendBatteryLevel(int percentage) {
+// Envoie les données de détection d'obstacles via BLE
+void BluetoothManager::sendObstacleData(const ObstacleData& data) {
     if (!deviceConnected) return;
     
-    // Limite entre 0 et 100
-    if (percentage < 0) percentage = 0;
-    if (percentage > 100) percentage = 100;
-    
-    // Formate les données de batterie
-    String batteryData = "{\"battery\":" + String(percentage) + "}";
+    // Formate les données en JSON selon le format attendu
+    String jsonData = "{";
+    jsonData += "\"upper\":" + String(data.upper) + ",";
+    jsonData += "\"lower\":" + String(data.lower) + ",";
+    jsonData += "\"servoAngle\":" + String(data.servoAngle);
+    jsonData += "}";
     
     // Envoie via BLE
-    pBatteryCharacteristic->setValue(batteryData.c_str());
-    pBatteryCharacteristic->notify();
+    pObstacleCharacteristic->setValue(jsonData.c_str());
+    pObstacleCharacteristic->notify();
     
-    Logger::info("Batterie envoyée via BLE: " + String(percentage) + "%");
+    Logger::info("Obstacles envoyés via BLE: Upper=" + String(data.upper) + 
+                 " Lower=" + String(data.lower));
 }
 
-// Envoie une alerte SOS
-void BluetoothManager::sendSOSAlert(bool active) {
+// Envoie les données IMU (orientation) via BLE
+void BluetoothManager::sendImuData(const ImuData& data) {
     if (!deviceConnected) return;
     
-    // Formate l'alerte SOS
-    String sosData = "{\"sos\":" + String(active ? "true" : "false") + "}";
+    // Formate les données en JSON selon le format attendu
+    String jsonData = "{";
+    jsonData += "\"yaw\":" + String(data.yaw, 2) + ",";
+    jsonData += "\"pitch\":" + String(data.pitch, 2) + ",";
+    jsonData += "\"roll\":" + String(data.roll, 2);
+    jsonData += "}";
     
     // Envoie via BLE
-    pSOSCharacteristic->setValue(sosData.c_str());
-    pSOSCharacteristic->notify();
+    pImuCharacteristic->setValue(jsonData.c_str());
+    pImuCharacteristic->notify();
     
-    Logger::info("Alerte SOS envoyée via BLE: " + String(active ? "ACTIVE" : "INACTIVE"));
+    Logger::info("IMU envoyé via BLE: Yaw=" + String(data.yaw) + 
+                 " Pitch=" + String(data.pitch) + 
+                 " Roll=" + String(data.roll));
 }

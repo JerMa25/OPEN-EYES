@@ -32,7 +32,7 @@ void setup() {
     Logger::info("=== CANNE INTELLIGENTE - DEMARRAGE ===");
 
     // Configuration du nom BLE (optionnel)
-    bluetooth.setDeviceName("Canne_Intelligente");
+    bluetooth.setDeviceName("OPEN EYES");
 
     pinMode(BOUTON_SOS, INPUT_PULLUP);
 
@@ -52,15 +52,9 @@ void loop() {
 
     // Vérification si le bouton SOS est pressé (LOW = bouton enfoncé)
     if (digitalRead(BOUTON_SOS) == LOW) {
-        gsm.sendSOS(); // Envoi d'un message SOS
-
-        // Envoie aussi l'alerte via Bluetooth
-        bluetooth.sendSOSAlert(true);  
+        gsm.sendSOS(); // Envoi d'un message SOS 
         
         delay(1000); // Attente d'1 seconde pour éviter les envois multiples
-        
-        // Désactive l'alerte après envoi
-        bluetooth.sendSOSAlert(false);
         
     }
 }

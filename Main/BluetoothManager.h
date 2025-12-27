@@ -1,5 +1,5 @@
 // ============================================
-// BluetoothManager.h - Gestionnaire BLE ESP32
+// BluetoothManager.h - Gestionnaire BLE pour toutes les données de la canne
 // ============================================
 #ifndef BLUETOOTH_MANAGER_H
 #define BLUETOOTH_MANAGER_H
@@ -9,18 +9,36 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
-#include "Logger.h"
 #include "IModule.h"
+#include "Logger.h"
 #include "GPSTracker.h"
 
 // UUID pour le service principal de la canne
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 
-// UUID pour les caractéristiques (données à envoyer)
-#define GPS_CHARACTERISTIC_UUID      "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-#define STATUS_CHARACTERISTIC_UUID   "beb5483e-36e1-4688-b7f5-ea07361b26a9"
-#define BATTERY_CHARACTERISTIC_UUID  "beb5483e-36e1-4688-b7f5-ea07361b26aa"
-#define SOS_CHARACTERISTIC_UUID      "beb5483e-36e1-4688-b7f5-ea07361b26ab"
+// UUID pour chaque type de données
+#define GPS_CHARACTERISTIC_UUID         "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define WATER_SENSOR_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a9"
+#define OBSTACLE_CHARACTERISTIC_UUID    "beb5483e-36e1-4688-b7f5-ea07361b26aa"
+#define IMU_CHARACTERISTIC_UUID         "beb5483e-36e1-4688-b7f5-ea07361b26ab"
+
+// Structures pour les données des futurs modules
+struct WaterSensorData {
+    float humidityLevel = 0.0;
+    int rawData = 0;
+};
+
+struct ObstacleData {
+    int upper = 0;
+    int lower = 0;
+    int servoAngle = 0;
+};
+
+struct ImuData {
+    float yaw = 0.0;
+    float pitch = 0.0;
+    float roll = 0.0;
+};
 
 // Classe pour gérer le Bluetooth BLE de l'ESP32
 class BluetoothManager : public IModule {
@@ -37,17 +55,11 @@ class BluetoothManager : public IModule {
     // Configure le nom BLE de l'appareil
     void setDeviceName(const String& name);
     
-    // Envoie les données GPS via BLE
-    void sendGPSData();
-    
-    // Envoie les données de statut (ex: batterie, état de la canne)
-    void sendStatusData(const String& status);
-    
-    // Envoie le niveau de batterie
-    void sendBatteryLevel(int percentage);
-    
-    // Envoie une alerte SOS
-    void sendSOSAlert(bool active);
+    // Méthodes d'envoi pour chaque type de données
+    void sendGPSData();                                    // GPS
+    void sendWaterSensorData(const WaterSensorData& data); // Capteur d'eau
+    void sendObstacleData(const ObstacleData& data);       // Détection obstacles
+    void sendImuData(const ImuData& data);                 // IMU (orientation)
     
     // Active/désactive l'envoi automatique
     void enableAutoSend(bool enable);
@@ -59,11 +71,11 @@ class BluetoothManager : public IModule {
     GPSTracker& gps;                      // Référence au tracker GPS
     
     // Objets BLE
-    BLEServer* pServer = nullptr;         // Serveur BLE
-    BLECharacteristic* pGPSCharacteristic = nullptr;      // Caractéristique GPS
-    BLECharacteristic* pStatusCharacteristic = nullptr;   // Caractéristique statut
-    BLECharacteristic* pBatteryCharacteristic = nullptr;  // Caractéristique batterie
-    BLECharacteristic* pSOSCharacteristic = nullptr;      // Caractéristique SOS
+    BLEServer* pServer = nullptr;                          // Serveur BLE
+    BLECharacteristic* pGPSCharacteristic = nullptr;       // Caractéristique GPS
+    BLECharacteristic* pWaterCharacteristic = nullptr;     // Caractéristique capteur eau
+    BLECharacteristic* pObstacleCharacteristic = nullptr;  // Caractéristique obstacles
+    BLECharacteristic* pImuCharacteristic = nullptr;       // Caractéristique IMU
     
     // État du BLE
     bool ready = false;                   // BLE prêt
