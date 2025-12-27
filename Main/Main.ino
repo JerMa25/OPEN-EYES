@@ -7,6 +7,7 @@
 #include "GPSTracker.h"
 #include "GSMEmergency.h"
 #include "ObstacleDetector.h"
+#include "BluetoothManager.h"
 
 // Création d'un port série matériel (UART2) pour communiquer avec le SIM808
 HardwareSerial SIM808(2);
@@ -15,9 +16,10 @@ HardwareSerial SIM808(2);
 GPSTracker gps(SIM808);      // Objet qui gère le GPS
 GSMEmergency gsm(SIM808, gps); // Objet qui gère les urgences GSM
 ObstacleDetector detector; // Objet qui gère détection des obstacles
+BluetoothManager bluetooth(gps); //Objet qui gère des données via bluetooth
 
 // Tableau de pointeurs vers tous les modules à initialiser et mettre à jour
-IModule* modules[] = { &gps, &gsm, &detector };
+IModule* modules[] = { &gps, &gsm, &detector, &bluetooth };
 
 void setup() {
     // Initialisation de la communication série pour le debug (USB)
@@ -29,18 +31,15 @@ void setup() {
 
     Logger::info("=== CANNE INTELLIGENTE - DEMARRAGE ===");
 
+    // Configuration du nom BLE (optionnel)
+    bluetooth.setDeviceName("Canne_Intelligente");
+
     pinMode(BOUTON_SOS, INPUT_PULLUP);
 
     // Initialisation de tous les modules
     for (IModule* m : modules) {
         m->init();
     }
-
-    // Configuration du Bluetooth (AJOUT)
-    gps.configureBluetooth("GPS_TRACKER", "1234");
-
-    // L'envoi automatique est activé par défaut
-    // Pour le désactiver: gps.enableBluetoothSending(false);
     
     Logger::info("=== SYSTEME OPERATIONNEL ===");
 }
@@ -54,6 +53,14 @@ void loop() {
     // Vérification si le bouton SOS est pressé (LOW = bouton enfoncé)
     if (digitalRead(BOUTON_SOS) == LOW) {
         gsm.sendSOS(); // Envoi d'un message SOS
+
+        // Envoie aussi l'alerte via Bluetooth
+        bluetooth.sendSOSAlert(true);  
+        
         delay(1000); // Attente d'1 seconde pour éviter les envois multiples
+        
+        // Désactive l'alerte après envoi
+        bluetooth.sendSOSAlert(false);
+        
     }
 }
