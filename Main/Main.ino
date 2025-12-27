@@ -28,6 +28,12 @@ void setup() {
         m->init();
     }
 
+    // Configuration du Bluetooth (AJOUT)
+    gps.configureBluetooth("GPS_TRACKER", "1234");
+
+    // L'envoi automatique est activé par défaut
+    // Pour le désactiver: gps.enableBluetoothSending(false);
+    
     Logger::info("=== SYSTEME OPERATIONNEL ===");
 }
 
