@@ -29,4 +29,12 @@
 // ===== OBSTACLE DETECTOR =====
 #define OBSTACLE_CHECK_INTERVAL 40
 
+// Seuils de navigation
+#define ARRIVAL_DISTANCE_METERS 10.0   // Distance pour considérer l'arrivée
+#define TURN_THRESHOLD_DEG      15.0   // Angle minimum pour corriger la direction
+
+#define DEG_TO_RAD 0.01745329251
+#define RAD_TO_DEG 57.2957795131
+#define EARTH_RADIUS 6371000.0  // mètres
+
 #endif
