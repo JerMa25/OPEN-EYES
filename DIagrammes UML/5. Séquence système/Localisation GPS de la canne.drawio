@@ -1,0 +1,81 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.5 Chrome/138.0.7204.251 Electron/37.6.1 Safari/537.36" version="28.2.5">
+  <diagram name="Page-1" id="2NLkwpiFcuFVZdWjGmpc">
+    <mxGraphModel dx="1356" dy="882" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-1" value="&lt;b&gt;Fournisseur de Localisation&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" vertex="1" parent="1">
+          <mxGeometry x="590" y="160" width="100" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-2" value="&lt;b&gt;Système&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" vertex="1" parent="1">
+          <mxGeometry x="350" y="160" width="100" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-6" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" vertex="1" parent="9dL_zmA9BN6LIQPfD7pU-2">
+          <mxGeometry x="45" y="65" width="10" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-13" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" vertex="1" parent="9dL_zmA9BN6LIQPfD7pU-2">
+          <mxGeometry x="45" y="145" width="10" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-3" value="&lt;b&gt;Assistant&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" vertex="1" parent="1">
+          <mxGeometry x="100" y="160" width="100" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-4" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="9dL_zmA9BN6LIQPfD7pU-3" target="9dL_zmA9BN6LIQPfD7pU-6">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="230" y="260" as="sourcePoint" />
+            <mxPoint x="390" y="226" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="390" y="226" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-5" value="getPositionGPS(canne)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="9dL_zmA9BN6LIQPfD7pU-4">
+          <mxGeometry x="-0.0664" y="1" relative="1" as="geometry">
+            <mxPoint y="-8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-7" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.51;exitY=0.22;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="260" as="sourcePoint" />
+            <mxPoint x="639" y="260" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="639" y="260" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-8" value="getCoordonnéesGPS(canne)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="9dL_zmA9BN6LIQPfD7pU-7">
+          <mxGeometry x="-0.0664" y="1" relative="1" as="geometry">
+            <mxPoint y="-8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-9" value="" style="endArrow=open;html=1;rounded=0;exitX=0.51;exitY=0.22;exitDx=0;exitDy=0;exitPerimeter=0;endFill=0;dashed=1;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="639" y="310" as="sourcePoint" />
+            <mxPoint x="404" y="310" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="639" y="310" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-10" value="Coordonnées GPS" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="9dL_zmA9BN6LIQPfD7pU-9">
+          <mxGeometry x="-0.0664" y="1" relative="1" as="geometry">
+            <mxPoint y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-11" value="" style="endArrow=open;html=1;rounded=0;exitX=0.51;exitY=0.22;exitDx=0;exitDy=0;exitPerimeter=0;endFill=0;dashed=1;" edge="1" parent="1" target="9dL_zmA9BN6LIQPfD7pU-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="399" y="340" as="sourcePoint" />
+            <mxPoint x="160" y="340" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="399" y="340" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9dL_zmA9BN6LIQPfD7pU-12" value="afficher position GPS" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="9dL_zmA9BN6LIQPfD7pU-11">
+          <mxGeometry x="-0.0664" y="1" relative="1" as="geometry">
+            <mxPoint y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
