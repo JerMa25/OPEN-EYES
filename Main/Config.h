@@ -37,4 +37,15 @@
 #define RAD_TO_DEG 57.2957795131
 #define EARTH_RADIUS 6371000.0  // mètres
 
+// MPU9250
+#define MPU_ADDR 0x68
+#define REG_ACCEL 0x3B
+#define REG_PWR   0x6B
+
+
+#define MPU_SCL_PIN 22
+#define MPU_SDA_PIN 23
+
+
+
 #endif
