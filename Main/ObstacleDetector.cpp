@@ -4,34 +4,6 @@
 #include "Config.h"
 
 // =======================================================
-// PINS
-// =======================================================
-const int TRIG_HIGH = 16;
-const int ECHO_HIGH = 17;
-const int TRIG_LOW  = 4;
-const int ECHO_LOW  = 5;
-const int SERVO_PIN  = 18;
-const int BUZZER_PIN = 27;
-
-// =======================================================
-// PARAMÈTRES
-// =======================================================
-const int BUZZER_CHANNEL = 0;
-const int BUZZER_RES = 8;
-
-const int DIST_SECURITE_HAUT = 150;
-const int DIST_SECURITE_BAS  = 100;
-
-const int ANGLE_MIN = 0;
-const int ANGLE_MAX = 180;
-const int ANGLE_STEP = 15;
-const int SERVO_DELAY = 120;
-
-const int BUFFER_SIZE = 5;
-const int SEUIL_VARIATION = 40;
-const unsigned long ALERT_COOLDOWN = 800;
-
-// =======================================================
 // CONSTRUCTEUR
 // =======================================================
 ObstacleDetector::ObstacleDetector() 
@@ -43,50 +15,56 @@ ObstacleDetector::ObstacleDetector()
       distPrecedenteHaut(-1),
       distPrecedenteBas(-1),
       lastAlertTimeHaut(0),
-      lastAlertTimeBas(0) {
+      lastAlertTimeBas(0),
+      lastDistanceHaut(-1),
+      lastDistanceBas(-1) {
     
-    // Initialiser les buffers
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < OBSTACLE_BUFFER_SIZE; i++) {
         bufferHaut[i] = 999;
         bufferBas[i] = 999;
     }
 }
 
 // =======================================================
-// INIT (APPELÉE DANS SETUP)
+// INIT
 // =======================================================
 void ObstacleDetector::init() {
     Logger::info("Initialisation détection obstacles");
 
     // Configuration des capteurs ultrasons
-    pinMode(TRIG_HIGH, OUTPUT);
-    pinMode(ECHO_HIGH, INPUT);
-    pinMode(TRIG_LOW, OUTPUT);
-    pinMode(ECHO_LOW, INPUT);
+    pinMode(OBSTACLE_TRIG_HIGH, OUTPUT);
+    pinMode(OBSTACLE_ECHO_HIGH, INPUT);
+    pinMode(OBSTACLE_TRIG_LOW, OUTPUT);
+    pinMode(OBSTACLE_ECHO_LOW, INPUT);
 
     // Configuration du servo
     servoMoteur.setPeriodHertz(50);
-    servoMoteur.attach(SERVO_PIN, 500, 2400);
+    servoMoteur.attach(OBSTACLE_SERVO_PIN, 500, 2400);
     servoMoteur.write(90);
 
     // Configuration du buzzer (PWM ESP32 v3.x)
-    ledcAttach(BUZZER_PIN, 2000, BUZZER_RES);
-    ledcWrite(BUZZER_PIN, 0);  // Buzzer OFF
+    ledcAttach(OBSTACLE_BUZZER_PIN, 2000, OBSTACLE_BUZZER_RES);
+    ledcWrite(OBSTACLE_BUZZER_PIN, 0);
 
-    // Bip de démarrage (3 bips)
+    // Configuration du moteur vibrant
+    pinMode(OBSTACLE_VIBRATOR_PIN, OUTPUT);
+    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
+    Logger::info("Moteur vibrant configuré sur GPIO " + String(OBSTACLE_VIBRATOR_PIN));
+
+    // Bip + Vibration de démarrage (3 fois)
     for (int i = 0; i < 3; i++) {
-        ledcWriteTone(BUZZER_PIN, 1500);
-        delay(100);
-        ledcWrite(BUZZER_PIN, 0);
+        ledcWriteTone(OBSTACLE_BUZZER_PIN, OBSTACLE_FREQ_DEMARRAGE);
+        vibrerCourt();
+        ledcWrite(OBSTACLE_BUZZER_PIN, 0);
         delay(200);
     }
 
     ready = true;
-    Logger::info("Détection obstacles prête");
+    Logger::info("Détection obstacles prête (avec retour haptique)");
 }
 
 // =======================================================
-// UPDATE (APPELÉE DANS LOOP)
+// UPDATE
 // =======================================================
 void ObstacleDetector::update() {
     if (!ready) return;
@@ -102,7 +80,8 @@ void ObstacleDetector::update() {
 // =======================================================
 void ObstacleDetector::stop() {
     Logger::info("Arrêt détection obstacles");
-    ledcWrite(BUZZER_PIN, 0);
+    ledcWrite(OBSTACLE_BUZZER_PIN, 0);
+    stopVibration();
     servoMoteur.detach();
     ready = false;
 }
@@ -127,7 +106,7 @@ ObstacleInfo ObstacleDetector::getLastObstacle() const {
 bool ObstacleDetector::hasObstacleHigh() const {
     return (lastObstacle.isHigh && 
             lastObstacle.distance > 0 && 
-            lastObstacle.distance < DIST_SECURITE_HAUT);
+            lastObstacle.distance < OBSTACLE_DIST_SECURITE_HAUT);
 }
 
 // =======================================================
@@ -136,35 +115,52 @@ bool ObstacleDetector::hasObstacleHigh() const {
 bool ObstacleDetector::hasObstacleLow() const {
     return (!lastObstacle.isHigh && 
             lastObstacle.distance > 0 && 
-            lastObstacle.distance < DIST_SECURITE_BAS);
+            lastObstacle.distance < OBSTACLE_DIST_SECURITE_BAS);
+}
+
+// =======================================================
+// GET OBSTACLE DATA FOR BLE
+// =======================================================
+ObstacleData ObstacleDetector::getObstacleDataForBLE() const {
+    ObstacleData data;
+    data.upper = lastDistanceHaut;
+    data.lower = lastDistanceBas;
+    data.servoAngle = angleActuel;
+    return data;
 }
 
 // =======================================================
 // VÉRIFIER OBSTACLE HAUT
 // =======================================================
 void ObstacleDetector::verifierObstacleHaut() {
-    int distance = mesureDistanceFiltre(TRIG_HIGH, ECHO_HIGH,
+    int distance = mesureDistanceFiltre(OBSTACLE_TRIG_HIGH, OBSTACLE_ECHO_HIGH,
                                         bufferHaut, &indexBufferHaut);
 
     if (distance <= 0) return;
 
     if (distPrecedenteHaut != -1 &&
-        abs(distance - distPrecedenteHaut) > SEUIL_VARIATION) return;
+        abs(distance - distPrecedenteHaut) > OBSTACLE_SEUIL_VARIATION) return;
 
     distPrecedenteHaut = distance;
+    lastDistanceHaut = distance;
 
-    if (distance < DIST_SECURITE_HAUT) {
+    if (distance < OBSTACLE_DIST_SECURITE_HAUT) {
         Logger::info("Obstacle HAUT à " + String(distance) + " cm");
 
-        // Enregistrer dernière détection
         lastObstacle.distance = distance;
         lastObstacle.angle = 0;
         lastObstacle.isHigh = true;
         lastObstacle.timestamp = millis();
 
         unsigned long now = millis();
-        if (now - lastAlertTimeHaut > ALERT_COOLDOWN) {
-            alerter(distance, 2000);
+        if (now - lastAlertTimeHaut > OBSTACLE_ALERT_COOLDOWN) {
+            alerter(distance, OBSTACLE_FREQ_HAUT);
+            
+            // Vibration HAUT : 2 vibrations courtes
+            if (OBSTACLE_VIBRATION_ENABLED) {
+                vibrerPattern(2);
+            }
+            
             lastAlertTimeHaut = now;
         }
     }
@@ -174,48 +170,61 @@ void ObstacleDetector::verifierObstacleHaut() {
 // BALAYER NIVEAU BAS
 // =======================================================
 void ObstacleDetector::balayerNiveauBas() {
-    angleActuel += directionDroite ? ANGLE_STEP : -ANGLE_STEP;
+    angleActuel += directionDroite ? OBSTACLE_ANGLE_STEP : -OBSTACLE_ANGLE_STEP;
 
-    if (angleActuel >= ANGLE_MAX) {
-        angleActuel = ANGLE_MAX;
+    if (angleActuel >= OBSTACLE_ANGLE_MAX) {
+        angleActuel = OBSTACLE_ANGLE_MAX;
         directionDroite = false;
     }
-    if (angleActuel <= ANGLE_MIN) {
-        angleActuel = ANGLE_MIN;
+    if (angleActuel <= OBSTACLE_ANGLE_MIN) {
+        angleActuel = OBSTACLE_ANGLE_MIN;
         directionDroite = true;
     }
 
     servoMoteur.write(angleActuel);
-    delay(SERVO_DELAY);
+    delay(OBSTACLE_SERVO_DELAY);
 
-    int distance = mesureDistanceFiltre(TRIG_LOW, ECHO_LOW,
+    int distance = mesureDistanceFiltre(OBSTACLE_TRIG_LOW, OBSTACLE_ECHO_LOW,
                                         bufferBas, &indexBufferBas);
 
     if (distance <= 0) return;
 
     if (distPrecedenteBas != -1 &&
-        abs(distance - distPrecedenteBas) > SEUIL_VARIATION) return;
+        abs(distance - distPrecedenteBas) > OBSTACLE_SEUIL_VARIATION) return;
 
     distPrecedenteBas = distance;
+    lastDistanceBas = distance;
 
-    if (distance < DIST_SECURITE_BAS) {
+    if (distance < OBSTACLE_DIST_SECURITE_BAS) {
         String dir = (angleActuel < 60) ? "GAUCHE" :
                      (angleActuel > 120) ? "DROITE" : "CENTRE";
         
         Logger::info("Obstacle BAS à " + String(distance) + " cm (" + dir + ")");
 
-        // Enregistrer dernière détection
         lastObstacle.distance = distance;
         lastObstacle.angle = angleActuel;
         lastObstacle.isHigh = false;
         lastObstacle.timestamp = millis();
 
         unsigned long now = millis();
-        if (now - lastAlertTimeBas > ALERT_COOLDOWN) {
-            int freq = (angleActuel < 60)  ? 1000 :
-                       (angleActuel > 120) ? 1500 : 1200;
+        if (now - lastAlertTimeBas > OBSTACLE_ALERT_COOLDOWN) {
+            int freq = (angleActuel < 60)  ? OBSTACLE_FREQ_BAS_GAUCHE :
+                       (angleActuel > 120) ? OBSTACLE_FREQ_BAS_DROITE : 
+                                             OBSTACLE_FREQ_BAS_CENTRE;
 
             alerter(distance, freq);
+            
+            // Vibration BAS : Pattern selon direction
+            if (OBSTACLE_VIBRATION_ENABLED) {
+                if (angleActuel < 60) {
+                    vibrerLong();  // GAUCHE : 1 longue
+                } else if (angleActuel > 120) {
+                    vibrerPattern(3);  // DROITE : 3 courtes
+                } else {
+                    vibrerCourt();  // CENTRE : 1 courte
+                }
+            }
+            
             lastAlertTimeBas = now;
         }
     }
@@ -250,28 +259,68 @@ int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
     if (d < 0) return -1;
 
     buffer[*index] = d;
-    *index = (*index + 1) % BUFFER_SIZE;
+    *index = (*index + 1) % OBSTACLE_BUFFER_SIZE;
 
-    int sorted[BUFFER_SIZE];
+    int sorted[OBSTACLE_BUFFER_SIZE];
     memcpy(sorted, buffer, sizeof(sorted));
 
-    for (int i = 0; i < BUFFER_SIZE - 1; i++)
-        for (int j = 0; j < BUFFER_SIZE - i - 1; j++)
+    for (int i = 0; i < OBSTACLE_BUFFER_SIZE - 1; i++)
+        for (int j = 0; j < OBSTACLE_BUFFER_SIZE - i - 1; j++)
             if (sorted[j] > sorted[j + 1])
                 std::swap(sorted[j], sorted[j + 1]);
 
-    return sorted[BUFFER_SIZE / 2];
+    return sorted[OBSTACLE_BUFFER_SIZE / 2];
 }
 
 // =======================================================
-// ALERTER
+// ALERTER (SON)
 // =======================================================
 void ObstacleDetector::alerter(int distance, int frequence) {
     distance = constrain(distance, 2, 150);
     int duree = map(distance, 2, 150, 300, 50);
 
-    ledcWriteTone(BUZZER_PIN, frequence);
+    ledcWriteTone(OBSTACLE_BUZZER_PIN, frequence);
     delay(duree);
-    ledcWrite(BUZZER_PIN, 0);
+    ledcWrite(OBSTACLE_BUZZER_PIN, 0);
     delay(50);
+}
+
+// =======================================================
+// VIBRATION COURTE
+// =======================================================
+void ObstacleDetector::vibrerCourt() {
+    digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
+    delay(OBSTACLE_VIBRATION_PATTERN_SHORT);
+    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
+}
+
+// =======================================================
+// VIBRATION LONGUE
+// =======================================================
+void ObstacleDetector::vibrerLong() {
+    digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
+    delay(OBSTACLE_VIBRATION_PATTERN_LONG);
+    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
+}
+
+// =======================================================
+// PATTERN DE VIBRATIONS
+// =======================================================
+void ObstacleDetector::vibrerPattern(int count) {
+    for (int i = 0; i < count; i++) {
+        digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
+        delay(OBSTACLE_VIBRATION_PATTERN_SHORT);
+        digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
+        
+        if (i < count - 1) {
+            delay(OBSTACLE_VIBRATION_PAUSE);
+        }
+    }
+}
+
+// =======================================================
+// ARRÊTER VIBRATION
+// =======================================================
+void ObstacleDetector::stopVibration() {
+    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
 }
