@@ -121,11 +121,23 @@ bool ObstacleDetector::hasObstacleLow() const {
 // =======================================================
 // GET OBSTACLE DATA FOR BLE
 // =======================================================
-ObstacleData ObstacleDetector::getObstacleDataForBLE() const {
+ObstacleData ObstacleDetector::getObstacleData() const {
     ObstacleData data;
     data.upper = lastDistanceHaut;
     data.lower = lastDistanceBas;
     data.servoAngle = angleActuel;
+    return data;
+}
+
+// =======================================================
+// GET WATER DETECTION DATA FOR BLE
+// =======================================================
+WaterSensorData ObstacleDetector::getWaterSensorData() const {
+    WaterSensorData data;
+    // Pour le moment, retourne des données fictives
+    // À implémenter quand le capteur d'eau sera ajouté
+    data.humidityLevel = 0.0;
+    data.rawData = 0;
     return data;
 }
 

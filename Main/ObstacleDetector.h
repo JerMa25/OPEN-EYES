@@ -30,7 +30,8 @@ class ObstacleDetector : public IModule {
     bool hasObstacleLow() const;
     
     // Méthode pour Bluetooth
-    ObstacleData getObstacleDataForBLE() const;
+    ObstacleData getObstacleData() const;
+    WaterSensorData getWaterSensorData() const;
 
   private:
     Servo servoMoteur;
