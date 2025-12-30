@@ -1,0 +1,100 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:146.0) Gecko/20100101 Firefox/146.0" version="29.2.9">
+  <diagram name="Page-1" id="76uwBGQ4LZSzAf2hNXwn">
+    <mxGraphModel dx="727" dy="1486" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="qUj-eTysUfuC4hfbS10T-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Appuyer sur le bouton d&#39;envioi de SMS d&#39;urgence" vertex="1">
+          <mxGeometry height="70" width="150" x="90" y="234" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-4" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="240" y="269" as="sourcePoint" />
+            <mxPoint x="460" y="269" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;div&gt;Tenter d&#39;nvoyer les SMS d&#39;urgence aux numeros présents dans la EEPROM&lt;/div&gt;" vertex="1">
+          <mxGeometry height="70" width="150" x="460" y="234" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-6" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;exitX=0.44;exitY=1.057;exitDx=0;exitDy=0;exitPerimeter=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="535" y="304.99" as="sourcePoint" />
+            <mxPoint x="535" y="341" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-7" parent="1" style="rhombus;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="80" width="80" x="495" y="341" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-8" edge="1" parent="1" source="qUj-eTysUfuC4hfbS10T-7" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="540" y="534" as="sourcePoint" />
+            <mxPoint x="535" y="484" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Envoyer Un Message Vocal de Succès" vertex="1">
+          <mxGeometry height="70" width="150" x="467" y="485" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-10" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="[Succes]" vertex="1">
+          <mxGeometry height="30" width="60" x="460" y="434" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-11" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="676" y="381" />
+              <mxPoint x="730" y="381" />
+            </Array>
+            <mxPoint x="576" y="381" as="sourcePoint" />
+            <mxPoint x="730" y="424" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Envoyer Un Message Vocal d&#39;échec" vertex="1">
+          <mxGeometry height="70" width="150" x="650" y="424" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-13" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="[Echec de l&#39;envoi]" vertex="1">
+          <mxGeometry height="30" width="120" x="590" y="354" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-17" parent="1" style="ellipse;html=1;shape=startState;fillColor=#000000;strokeColor=#ff0000;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="146" y="144" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-18" edge="1" parent="1" source="qUj-eTysUfuC4hfbS10T-17" style="edgeStyle=orthogonalEdgeStyle;html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#ff0000;rounded=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="161" y="234" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-19" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="534.52" y="555" as="sourcePoint" />
+            <mxPoint x="534.52" y="618" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-20" parent="1" style="ellipse;html=1;shape=endState;fillColor=#000000;strokeColor=#ff0000;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="520" y="619" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-21" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="qUj-eTysUfuC4hfbS10T-20" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="730" y="634" />
+            </Array>
+            <mxPoint x="730" y="494" as="sourcePoint" />
+            <mxPoint x="793" y="651" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-22" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;&lt;u&gt;Diagramme D&#39;activité Envoyer Message D&#39;urgence&lt;/u&gt;&lt;/b&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="30" width="380" x="146" y="-40" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-23" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="330" y="756.095203218006" as="sourcePoint" />
+            <mxPoint x="330" y="100" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-24" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;b&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;Système&lt;/font&gt;&lt;/b&gt;" vertex="1">
+          <mxGeometry height="30" width="60" x="470" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="qUj-eTysUfuC4hfbS10T-25" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;Aveugle&lt;/b&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="30" width="60" x="135" y="100" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
