@@ -292,6 +292,9 @@ void loop() {
         // Envoie les données du capteur d'eau
         WaterSensorData waterData = detector.getWaterSensorData();
         bluetooth.sendWaterSensorData(waterData);
+
+        // Envoie les données GPS
+        bluetooth.sendGPSData();
         
         lastManualSend = currentTime;
     }
