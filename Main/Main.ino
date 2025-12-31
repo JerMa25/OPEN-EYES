@@ -56,6 +56,10 @@ void gererBoutonONOFF() {
             
             if (systemeActif) {
                 Logger::info("=== SYSTÈME ACTIVÉ ===");
+
+                // Allume LED Power (verte)
+                digitalWrite(LED_POWER, HIGH);
+
                 // Réactive tous les modules
                 for (IModule* m : modules) {
                     if (!m->isReady()) {
@@ -71,6 +75,10 @@ void gererBoutonONOFF() {
                 }
             } else {
                 Logger::info("=== SYSTÈME DÉSACTIVÉ ===");
+
+                // Éteint LED Power (verte)
+                digitalWrite(LED_POWER, LOW);
+
                 // Arrête tous les modules
                 for (IModule* m : modules) {
                     m->stop();
@@ -172,8 +180,10 @@ void setup() {
     pinMode(BOUTON_SOS, INPUT_PULLUP);     // Bouton SOS avec résistance PULLUP interne
     pinMode(BOUTON_ONOFF, INPUT_PULLUP);   // Bouton ON/OFF avec résistance PULLUP interne
 
-    // Configuration de la LED de statut
-    pinMode(LED_STATUS, OUTPUT);
+    // Configuration des LEDs
+    pinMode(LED_POWER, OUTPUT);            // LED verte Power
+    pinMode(LED_STATUS, OUTPUT);           // LED rouge Status
+    digitalWrite(LED_POWER, HIGH);         // LED Power allumée au démarrage
     digitalWrite(LED_STATUS, LOW);
 
     // Configuration du buzzer
@@ -196,6 +206,10 @@ void setup() {
     Logger::info("=== SYSTEME OPERATIONNEL ===");
     Logger::info("Nom BLE: OPEN EYES");
     Logger::info("Contacts enregistrés: " + String(gsm.getNombreContacts()));
+    Logger::info("");
+    Logger::info("--- BOUTONS ---");
+    Logger::info("Bouton VERT (GPIO12) = ON/OFF système");
+    Logger::info("Bouton ROUGE (GPIO13) = SOS");
     Logger::info("");
     Logger::info("--- COMMANDES SMS ADMIN ---");
     Logger::info("ADMIN:ADD:+237XXX - Ajouter contact");
@@ -239,6 +253,7 @@ void loop() {
     // Affiche un log de statut toutes les 10 secondes
     if (currentTime - lastStatusLog >= STATUS_INTERVAL) {
         Logger::info("--- Statut Système ---");
+        Logger::info("Système: " + String(systemeActif ? "ON" : "OFF"));
         Logger::info("BLE Connecté: " + String(bluetooth.isClientConnected() ? "OUI" : "NON"));
         Logger::info("GPS Prêt: " + String(gps.isReady() ? "OUI" : "NON"));
         Logger::info("GSM Prêt: " + String(gsm.isReady() ? "OUI" : "NON"));

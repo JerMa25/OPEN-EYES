@@ -8,11 +8,14 @@
 #define SIM808_RX         17  // Pin de réception (RX) pour la communication avec SIM808
 #define SIM808_TX         16  // Pin de transmission (TX) pour la communication avec SIM808
 #define SIM808_PWR        25  // Pin pour contrôler l'alimentation du SIM808
-
-// ===== BOUTONS ET LEDS =====
-#define BOUTON_SOS        13  // Pin du bouton d'urgence SOS
+  
+// ===== BOUTONS =====
+#define BOUTON_SOS        13   // Pin du bouton d'urgence SOS
 #define BOUTON_ONOFF      12   // Pin du bouton ON/OFF
-#define LED_STATUS        27  // Pin de la LED d'état
+
+// ===== LEDS =====
+#define LED_POWER         14   // LED verte power (système ON/OFF)
+#define LED_STATUS        27   // LED rouge status
 
 // ===== PARAMÈTRES GPS =====
 #define GPS_UPDATE_INTERVAL   5000   // Intervalle de mise à jour GPS (5 secondes)
