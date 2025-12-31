@@ -93,43 +93,7 @@ class HomePage extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 50,
-                        color: Colors.grey[300],
-                      ),
-                      // Batterie
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.battery_charging_full, color: Colors.green[600], size: 20),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'BATTERIE',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '85%',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[900],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ),                      
                     ],
                   ),
                 ),

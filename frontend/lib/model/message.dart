@@ -1,4 +1,3 @@
-// lib/models/contact.dart
 import 'package:flutter/material.dart';
 
 class Message {
@@ -7,7 +6,6 @@ class Message {
   final String avatarText;
   final bool useEmoji;
   final Color? backgroundColor;
-  final Color? textColor;
 
   Message({
     required this.content,
@@ -15,22 +13,22 @@ class Message {
     required this.avatarText,
     this.useEmoji = false,
     this.backgroundColor,
-    this.textColor,
   });
-}
 
-// Données d'exemple
-class MessageData {
-  static List<Message> getmessages() {
-    return [
-      Message(
-        content: 'Jean Dupont',
-        receiver: 'Frère',
-        avatarText: '👨‍💼',
-        useEmoji: true,
-      ),
-    ];
+  factory Message.fromJson(Map<String, dynamic> json) {
+    return Message(
+      content: json['content'],
+      receiver: json['receiver'],
+      avatarText: json['avatarText'] ?? '🦯',
+      useEmoji: true,
+    );
   }
 
-  
+  Map<String, dynamic> toJson() {
+    return {
+      "content": content,
+      "receiver": receiver,
+      "avatarText": avatarText,
+    };
+  }
 }

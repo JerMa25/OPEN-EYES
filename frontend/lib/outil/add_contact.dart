@@ -163,7 +163,7 @@ class _AddContactDialogState extends State<AddContactDialog> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _selectedRole,
+              initialValue: _selectedRole,
               decoration: InputDecoration(
                 hintText: 'Sélectionner un rôle',
                 prefixIcon: Icon(Icons.people_outline, color: Colors.grey[400]),
