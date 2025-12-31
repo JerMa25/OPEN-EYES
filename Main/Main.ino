@@ -8,6 +8,8 @@
 #include "GSMEmergency.h"
 #include "ObstacleDetector.h"
 #include "BluetoothManager.h"
+#include "GPSAssistance.h"
+
 
 // Création d'un port série matériel (UART2) pour communiquer avec le SIM808
 HardwareSerial SIM808(2);
@@ -17,9 +19,11 @@ GPSTracker gps(SIM808);      // Objet qui gère le GPS
 GSMEmergency gsm(SIM808, gps); // Objet qui gère les urgences GSM
 ObstacleDetector detector; // Objet qui gère détection des obstacles
 BluetoothManager bluetooth(gps); //Objet qui gère des données via bluetooth
+GPSAssistance imu(bluetooth);  // Module IMU (MPU9255)
+
 
 // Tableau de pointeurs vers tous les modules à initialiser et mettre à jour
-IModule* modules[] = { &gps, &gsm, &detector, &bluetooth };
+IModule* modules[] = { &gps, &gsm, &detector, &bluetooth, &imu };
 
 // ===== VARIABLES BOUTON ON/OFF =====
 bool systemeActif = true;           // État du système (ON/OFF)
@@ -295,6 +299,15 @@ void loop() {
 
         // Envoie les données GPS
         bluetooth.sendGPSData();
+
+            // ===== IMU (YAW / PITCH / ROLL) =====
+        IMUData imuData = imu.getIMUData();
+        bluetooth.sendImuData({
+            imuData.yaw,
+            imuData.pitch,
+            imuData.roll
+        });
+
         
         lastManualSend = currentTime;
     }

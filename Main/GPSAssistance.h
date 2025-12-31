@@ -1,51 +1,74 @@
-// ============================================
-// GPSAssistance.h - Assistance à la navigation
-// ============================================
-#ifndef GPS_ASSISTANCE_H
-#define GPS_ASSISTANCE_H
+#include "GPSAssistance.h"
+#include <Wire.h>
+#include <math.h>
 
-#include <Arduino.h>
-#include "GPSTracker.h"
-#include "Logger.h"
+#include "Config.h"
 
 
+GPSAssistance::GPSAssistance(BluetoothManager& bt)
+: bluetooth(bt) {}
 
+void GPSAssistance::init() {
 
-enum DirectionInstruction {
-    DIR_CONTINUE,
-    DIR_TURN_LEFT,
-    DIR_TURN_RIGHT,
-    DIR_ARRIVED,
-    DIR_NO_GPS
-};
+    Wire.begin(MPU_SDA_PIN, MPU_SCL_PIN);
+    Wire.setClock(400000); // I2C rapide recommandé MPU
 
-class GPSAssistance {
-  public:
-    GPSAssistance(GPSTracker& gps);
+    initMPU();
+    ready = true;
+}
 
-    void setDestination(float latitude, float longitude);
-    bool hasDestination() const;
+void GPSAssistance::initMPU() {
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(REG_PWR);
+    Wire.write(0x00); // réveil
+    Wire.endTransmission();
+    delay(100);
+}
 
-    void update();   // À appeler dans loop()
+void GPSAssistance::update() {
+    if (!ready) return;
 
-    DirectionInstruction getInstruction() const;
-    float getDistanceToDestination() const;
-    float getBearingToDestination() const;
+    readIMU();
 
-  private:
-    GPSTracker& gpsTracker;
+    ImuData data;
+    data.yaw   = imuData.yaw;
+    data.pitch = imuData.pitch;
+    data.roll  = imuData.roll;
 
-    float destLat = 0.0;
-    float destLon = 0.0;
-    bool destinationSet = false;
+    bluetooth.sendImuData(data);
+}
 
-    float distanceMeters = 0.0;
-    float bearingDegrees = 0.0;
-    DirectionInstruction currentInstruction = DIR_NO_GPS;
+void GPSAssistance::readIMU() {
+    uint8_t buf[6];
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(REG_ACCEL);
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU_ADDR, 6);
 
-    float calculateDistance(float lat1, float lon1, float lat2, float lon2);
-    float calculateBearing(float lat1, float lon1, float lat2, float lon2);
-    float normalizeAngle(float angle);
-};
+    int16_t ax = Wire.read()<<8 | Wire.read();
+    int16_t ay = Wire.read()<<8 | Wire.read();
+    int16_t az = Wire.read()<<8 | Wire.read();
 
-#endif
+    float axg = ax / 16384.0;
+    float ayg = ay / 16384.0;
+    float azg = az / 16384.0;
+
+    imuData.roll  = atan2(ayg, azg) * 180.0 / M_PI;
+    imuData.pitch = atan2(-axg, sqrt(ayg*ayg + azg*azg)) * 180.0 / M_PI;
+
+    // Yaw estimé plus tard avec magnétomètre
+    imuData.yaw = imuData.yaw; 
+}
+
+void GPSAssistance::stop() {
+    ready = false;
+    Logger::info("GPS Assistance arrêtée");
+}
+
+bool GPSAssistance::isReady() const {
+    return ready;
+}
+
+IMUData GPSAssistance::getIMUData() const {
+    return imuData;
+}
