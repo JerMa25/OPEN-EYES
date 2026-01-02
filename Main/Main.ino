@@ -91,13 +91,13 @@ void gererBoutonONOFF() {
                 digitalWrite(LED_STATUS, LOW);
                 
                 // Bip de confirmation (2 bips courts)
-                ledcWriteTone(OBSTACLE_BUZZER_PIN, 1500);
+                ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
                 delay(100);
-                ledcWrite(OBSTACLE_BUZZER_PIN, 0);
+                ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
                 delay(100);
-                ledcWriteTone(OBSTACLE_BUZZER_PIN, 1500);
+                ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
                 delay(100);
-                ledcWrite(OBSTACLE_BUZZER_PIN, 0);
+                ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
             }
         }
     }
@@ -137,8 +137,22 @@ void detecterPatternBouton() {
         if (duree >= DELAI_APPUI_LONG) {
             Logger::warn("!!! APPUI LONG DETECTE - ALERTE SOS !!!");
 
-        //  AJOUT ICI DE LA MÉLODIE SOS
-            detector.melodieSOS();  
+        // 🎵 MÉLODIE SOS - Sirène alternée 800↔1500 Hz (3 cycles)
+        for (int i = 0; i < 3; i++) {
+            // Montée
+            ledcWriteTone(OBSTACLE_BUZZER_PIN_1, 800);
+            ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 800);
+            delay(300);
+            
+            // Descente
+            ledcWriteTone(OBSTACLE_BUZZER_PIN_1, 1500);
+            ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
+            delay(300);
+        }
+        
+            // Arrêt sons
+            ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
+            ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
 
             gsm.sendAlertToAll("URGENCE ! J'ai besoin d'aide !");
             compteurClics = 0;
@@ -194,22 +208,27 @@ void setup() {
     digitalWrite(LED_POWER, HIGH);         // LED Power allumée au démarrage
     digitalWrite(LED_STATUS, LOW);
 
-    // Configuration du buzzer
-    ledcAttach(OBSTACLE_BUZZER_PIN, 2000, OBSTACLE_BUZZER_RES);
-    ledcWrite(OBSTACLE_BUZZER_PIN, 0);
+    // Configuration des buzzers
+    ledcAttach(OBSTACLE_BUZZER_PIN_1, 2000, OBSTACLE_BUZZER_RES);  // Buzzer 1
+    ledcAttach(OBSTACLE_BUZZER_PIN_2, 2000, OBSTACLE_BUZZER_RES);  // Buzzer 2
+    ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
+    ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
 
     // Initialisation de tous les modules
     for (IModule* m : modules) {
         m->init();
     }
     
-    // Bip de démarrage (3 bips)
+    // Bip de démarrage (REMPLACE l'ancienne boucle)
     for (int i = 0; i < 3; i++) {
-        ledcWriteTone(OBSTACLE_BUZZER_PIN, OBSTACLE_FREQ_DEMARRAGE);
+        ledcWriteTone(OBSTACLE_BUZZER_PIN_1, OBSTACLE_FREQ_DEMARRAGE);
+        ledcWriteTone(OBSTACLE_BUZZER_PIN_2, OBSTACLE_FREQ_DEMARRAGE);
         delay(150);
-        ledcWrite(OBSTACLE_BUZZER_PIN, 0);
+        ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
+        ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
         delay(150);
     }
+
 
     Logger::info("=== SYSTEME OPERATIONNEL ===");
     Logger::info("Nom BLE: OPEN EYES");
@@ -326,6 +345,19 @@ void loop() {
         digitalWrite(LED_STATUS, ledState);
         lastBlink = currentTime;
     }
+
+     // Bip de confirmation (2 bips courts) - REMPLACE
+        ledcWriteTone(OBSTACLE_BUZZER_PIN_1, 1500);
+        ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
+        delay(100);
+        ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
+        ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
+        delay(100);
+        ledcWriteTone(OBSTACLE_BUZZER_PIN_1, 1500);
+        ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
+        delay(100);
+        ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
+        ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
     
     // Petit délai pour ne pas surcharger le processeur
     delay(10);
