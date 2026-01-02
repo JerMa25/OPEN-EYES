@@ -25,11 +25,11 @@
 // ===== NUMÉROS DE TÉLÉPHONE =====
 #define NUMERO_URGENCE "+237XXXXXXXXX"  // Numéro d'urgence principal
 #define NUMERO_PROCHE  "+237YYYYYYYYY"  // Numéro d'un proche (optionnel)
-#define NUMERO_ADMIN   "+237670000000"  // Numéro de l'administrateur qui peut gérer les contacts
+#define NUMERO_ADMIN   "+237691501793"  // Numéro de l'administrateur qui peut gérer les contacts
 
 // ===== PARAMÈTRES DE COMMUNICATION SÉRIE =====
 #define DEBUG_BAUDRATE 115200  // Vitesse de communication pour le debug USB
-#define SIM808_BAUDRATE 9600   // Vitesse de communication avec le SIM808
+#define SIM808_BAUDRATE 115200   // Vitesse de communication avec le SIM808
 
 // ===== CONFIGURATION EEPROM =====
 #define EEPROM_SIZE 200              // Taille totale de l'EEPROM à utiliser
