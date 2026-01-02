@@ -346,19 +346,6 @@ void loop() {
         lastBlink = currentTime;
     }
 
-     // Bip de confirmation (2 bips courts) - REMPLACE
-        ledcWriteTone(OBSTACLE_BUZZER_PIN_1, 1500);
-        ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
-        delay(100);
-        ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
-        ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
-        delay(100);
-        ledcWriteTone(OBSTACLE_BUZZER_PIN_1, 1500);
-        ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
-        delay(100);
-        ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
-        ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
-    
     // Petit délai pour ne pas surcharger le processeur
     delay(10);
 }
