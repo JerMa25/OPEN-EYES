@@ -136,6 +136,10 @@ void detecterPatternBouton() {
         // Appui long détecté (≥ 2 secondes)
         if (duree >= DELAI_APPUI_LONG) {
             Logger::warn("!!! APPUI LONG DETECTE - ALERTE SOS !!!");
+
+        //  AJOUT ICI DE LA MÉLODIE SOS
+            detector.melodieSOS();  
+
             gsm.sendAlertToAll("URGENCE ! J'ai besoin d'aide !");
             compteurClics = 0;
         }

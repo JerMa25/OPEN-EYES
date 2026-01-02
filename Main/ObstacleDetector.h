@@ -15,6 +15,12 @@ struct ObstacleInfo {
     unsigned long timestamp = 0;
 };
 
+// Énumération pour les niveaux d'eau
+enum WaterLevel {
+    WATER_NONE = 0,      // Sec
+    WATER_HUMID = 1,     // Humide
+    WATER_FLOOD = 2      // Inondation
+};
 
 class ObstacleDetector : public IModule {
   public:
@@ -29,9 +35,11 @@ class ObstacleDetector : public IModule {
     bool hasObstacleHigh() const;
     bool hasObstacleLow() const;
     
-    // Méthode pour Bluetooth
+    // Méthodes pour Bluetooth
     ObstacleData getObstacleData() const;
     WaterSensorData getWaterSensorData() const;
+    // 🎵 MÉLODIE SOS (NOUVELLE)
+        void melodieSOS();                             // Sirène
 
   private:
     Servo servoMoteur;
@@ -45,6 +53,7 @@ class ObstacleDetector : public IModule {
     int lastDistanceHaut;
     int lastDistanceBas;
 
+    // Buffers filtrage
     int bufferHaut[5];
     int bufferBas[5];
     int indexBufferHaut;
@@ -55,17 +64,44 @@ class ObstacleDetector : public IModule {
 
     unsigned long lastAlertTimeHaut;
     unsigned long lastAlertTimeBas;
+    
+    // ===== CAPTEUR D'EAU =====
+    int lastWaterValue;              // Dernière valeur lue (0-4095)
+    WaterLevel lastWaterLevel;       // Dernier niveau détecté
+    unsigned long lastWaterCheck;    // Dernier check eau
+    unsigned long lastWaterAlert;    // Dernière alerte eau
+    bool waterAlertActive;           // Alerte eau en cours
 
+    // ===== MÉTHODES PRIVÉES =====
+    
+    // Détection obstacles (existantes)
     void verifierObstacleHaut();
     void balayerNiveauBas();
     int mesureDistance(int trigPin, int echoPin);
     int mesureDistanceFiltre(int trigPin, int echoPin, int* buffer, int* index);
+    
+    // Détection eau (NOUVELLES)
+    void verifierCapteurEau();
+    WaterLevel determinerNiveauEau(int valeurBrute);
+    
+    // Alertes sonores génériques (existante mais modifiée)
     void alerter(int distance, int frequence);
     
-    // Méthodes vibration
+    // Mélodies différenciées (NOUVELLES)
+    void melodieObstacleProgressif(int distance);  // Bips progressifs
+    void melodieTrouEscalier();                    // 3 bips rapides + vibration
+    void melodieEauDetectee();                     // Mélodie descendante
+
+    
+    // Contrôle buzzers (NOUVELLES)
+    void jouerToneDual(int frequence);             // Joue sur les 2 buzzers
+    void stopToneDual();                           // Arrête les 2 buzzers
+    
+    // Vibration (existantes)
     void vibrerCourt();
     void vibrerLong();
     void vibrerPattern(int count);
+    void vibrerContinue(unsigned long duree);      // NOUVELLE
     void stopVibration();
 };
 
