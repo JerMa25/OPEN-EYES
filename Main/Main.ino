@@ -69,14 +69,14 @@ void gererBoutonONOFF() {
                 }
                 digitalWrite(LED_STATUS, LOW);
                 
-                // ✅ API ESP32 Core 2.0.x
-                ledcWriteTone(BUZZER_1_CHANNEL, 1500);
+               // ✅ Signal d'arrêt (ESP32 Core 3.x)
+                ledcWriteTone(BUZZER_1_PIN, 1500);
                 delay(100);
-                ledcWriteTone(BUZZER_1_CHANNEL, 0);
+                ledcWrite(BUZZER_1_PIN, 0);
                 delay(100);
-                ledcWriteTone(BUZZER_1_CHANNEL, 1500);
+                ledcWriteTone(BUZZER_1_PIN, 1500);
                 delay(100);
-                ledcWriteTone(BUZZER_1_CHANNEL, 0);
+                ledcWrite(BUZZER_1_PIN, 0);
             }
         }
     }
@@ -132,6 +132,7 @@ void detecterPatternBouton() {
     
     boutonPrecedent = boutonActuel;
 }
+
 
 // =======================================================
 // SETUP
@@ -189,20 +190,18 @@ void setup() {
     }
     Logger::info("✅ [SETUP] Test LED terminé");
 
-    // ===== CONFIG BUZZERS PWM (ESP32 Core 2.0.x) =====
-    Logger::info("🔊 [SETUP] Configuration PWM Buzzers (ESP32 Core 2.0.x)...");
-    Logger::info("🔊 [SETUP] BUZZER 1 : GPIO" + String(BUZZER_1_PIN) + " Canal=" + String(BUZZER_1_CHANNEL));
+    // ===== CONFIG BUZZERS PWM (ESP32 Core 3.x) =====
+    Logger::info("🔊 [SETUP] Configuration PWM Buzzers (ESP32 Core 3.x)...");
+    Logger::info("🔊 [SETUP] BUZZER 1 : GPIO" + String(BUZZER_1_PIN));
     
-    // ✅ API ESP32 Core 2.0.x
-    ledcSetup(BUZZER_1_CHANNEL, 2000, BUZZER_1_RES);  // Canal, freq, résolution
-    ledcAttachPin(BUZZER_1_PIN, BUZZER_1_CHANNEL);    // Pin, canal
-    ledcWrite(BUZZER_1_CHANNEL, 0);                    // Éteindre
+    // ✅ API ESP32 Core 3.x
+    ledcAttach(BUZZER_1_PIN, 2000, BUZZER_1_RES);
+    ledcWrite(BUZZER_1_PIN, 0);
     Logger::info("✅ [SETUP] BUZZER 1 configuré");
     
-    Logger::info("🔊 [SETUP] BUZZER 2 : GPIO" + String(BUZZER_2_PIN) + " Canal=" + String(BUZZER_2_CHANNEL));
-    ledcSetup(BUZZER_2_CHANNEL, 2000, BUZZER_2_RES);
-    ledcAttachPin(BUZZER_2_PIN, BUZZER_2_CHANNEL);
-    ledcWrite(BUZZER_2_CHANNEL, 0);
+    Logger::info("🔊 [SETUP] BUZZER 2 : GPIO" + String(BUZZER_2_PIN));
+    ledcAttach(BUZZER_2_PIN, 2000, BUZZER_2_RES);
+    ledcWrite(BUZZER_2_PIN, 0);
     Logger::info("✅ [SETUP] BUZZER 2 configuré");
 
     // ===== INIT MODULES =====
@@ -226,9 +225,9 @@ void setup() {
     Logger::info("🔊 [SETUP] Test bips démarrage...");
     for (int i = 0; i < 3; i++) {
         Logger::info("🔊 [TEST] Bip " + String(i+1) + "/3");
-        ledcWriteTone(BUZZER_1_CHANNEL, OBSTACLE_FREQ_DEMARRAGE);
+        ledcWriteTone(BUZZER_1_PIN, OBSTACLE_FREQ_DEMARRAGE);
         delay(150);
-        ledcWriteTone(BUZZER_1_CHANNEL, 0);
+        ledcWrite(BUZZER_1_PIN, 0);
         delay(150);
     }
     Logger::info("✅ [SETUP] Test bips terminé");
@@ -265,7 +264,6 @@ void setup() {
     Logger::info("════════════════════════════════════════");
     Logger::info("");
 }
-
 // =======================================================
 // LOOP
 // =======================================================

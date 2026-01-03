@@ -505,35 +505,35 @@ void ObstacleDetector::alerterObstacle(int distance, int frequence) {
 }
 
 // =======================================================
-// BUZZER 1 - ON
+// BUZZER 1 - ON (ESP32 Core 2.0.x)
 // =======================================================
 void ObstacleDetector::buzzer1Tone(int frequence) {
-    Logger::info("🔊 [BUZZER1] ON - GPIO" + String(BUZZER_1_PIN) + " @ " + String(frequence) + "Hz");
-    ledcWriteTone(BUZZER_1_PIN, frequence);
+    Logger::info("🔊 [BUZZER1] ON - Canal" + String(BUZZER_1_CHANNEL) + " @ " + String(frequence) + "Hz");
+    ledcWriteTone(BUZZER_1_CHANNEL, frequence);
 }
 
 // =======================================================
-// BUZZER 1 - OFF
+// BUZZER 1 - OFF (ESP32 Core 2.0.x)
 // =======================================================
 void ObstacleDetector::buzzer1Off() {
-    Logger::info("🔇 [BUZZER1] OFF - GPIO" + String(BUZZER_1_PIN));
-    ledcWrite(BUZZER_1_PIN, 0);
+    Logger::info("🔇 [BUZZER1] OFF - Canal" + String(BUZZER_1_CHANNEL));
+    ledcWriteTone(BUZZER_1_CHANNEL, 0);
 }
 
 // =======================================================
-// BUZZER 2 - ON
+// BUZZER 2 - ON (ESP32 Core 2.0.x)
 // =======================================================
 void ObstacleDetector::buzzer2Tone(int frequence) {
-    Logger::info("🔊 [BUZZER2] ON - GPIO" + String(BUZZER_2_PIN) + " @ " + String(frequence) + "Hz");
-    ledcWriteTone(BUZZER_2_PIN, frequence);
+    Logger::info("🔊 [BUZZER2] ON - Canal" + String(BUZZER_2_CHANNEL) + " @ " + String(frequence) + "Hz");
+    ledcWriteTone(BUZZER_2_CHANNEL, frequence);
 }
 
 // =======================================================
-// BUZZER 2 - OFF
+// BUZZER 2 - OFF (ESP32 Core 2.0.x)
 // =======================================================
 void ObstacleDetector::buzzer2Off() {
-    Logger::info("🔇 [BUZZER2] OFF - GPIO" + String(BUZZER_2_PIN));
-    ledcWrite(BUZZER_2_PIN, 0);
+    Logger::info("🔇 [BUZZER2] OFF - Canal" + String(BUZZER_2_CHANNEL));
+    ledcWriteTone(BUZZER_2_CHANNEL, 0);
 }
 
 // =======================================================

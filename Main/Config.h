@@ -54,7 +54,7 @@
 #define OBSTACLE_ECHO_HIGH    18
 #define OBSTACLE_TRIG_LOW     19
 #define OBSTACLE_ECHO_LOW     21
-#define OBSTACLE_SERVO_PIN    32
+#define OBSTACLE_SERVO_PIN    35
 
 // ===== BUZZERS =====
 #define BUZZER_1_PIN          4
@@ -129,5 +129,6 @@
 #define REG_PWR   0x6B
 #define MPU_SCL_PIN 22
 #define MPU_SDA_PIN 23
+
 
 #endif
