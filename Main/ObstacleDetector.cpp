@@ -550,7 +550,7 @@ void ObstacleDetector::vibrerCourt() {
 // VIBRATION LONGUE
 // =======================================================
 void ObstacleDetector::vibrerLong() {
-    Logger::info("📳 [VIB] Long");
+    Logger::info("📳 [VIB] Long");  bluetooth.sendImuData(data);
     digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
     delay(OBSTACLE_VIBRATION_PATTERN_LONG);
     digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);

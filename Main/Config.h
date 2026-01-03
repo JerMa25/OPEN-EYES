@@ -29,7 +29,7 @@
 #define NUMERO_ADMIN   "+237670000000"
 
 // ===== PARAMÈTRES DE COMMUNICATION SÉRIE =====
-#define DEBUG_BAUDRATE 115200
+#define DEBUG_BAUDRATE 9600
 #define SIM808_BAUDRATE 9600
 
 // ===== CONFIGURATION EEPROM =====
@@ -129,6 +129,5 @@
 #define REG_PWR   0x6B
 #define MPU_SCL_PIN 22
 #define MPU_SDA_PIN 23
-
 
 #endif

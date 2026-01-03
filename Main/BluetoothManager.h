@@ -34,7 +34,7 @@ struct ObstacleData {
     int servoAngle = 0;
 };
 
-struct ImuData {
+struct IMUData {
     float yaw = 0.0;
     float pitch = 0.0;
     float roll = 0.0;

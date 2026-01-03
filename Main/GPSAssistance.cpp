@@ -35,7 +35,6 @@ void GPSAssistance::update() {
     data.pitch = imuData.pitch;
     data.roll  = imuData.roll;
 
-    bluetooth.sendImuData(data);
 }
 
 void GPSAssistance::readIMU() {
