@@ -3,6 +3,7 @@
 
 // ===== ACTIVATION DES LOGS =====
 #define LOG_ENABLED true
+#define DEBUG_MODE true  // ✅ NOUVEAU : Mode debug ultra-verbeux
 
 // ===== PINS DU MODULE SIM808 =====
 #define SIM808_RX         17
@@ -47,7 +48,7 @@
 #define DISTANCE_DANGER 20
 
 // ============================================================
-// ===== OBSTACLE DETECTOR - PINS (✅ CORRIGÉS) =====
+// ===== OBSTACLE DETECTOR - PINS =====
 // ============================================================
 #define OBSTACLE_TRIG_HIGH    5
 #define OBSTACLE_ECHO_HIGH    18
@@ -55,13 +56,13 @@
 #define OBSTACLE_ECHO_LOW     21
 #define OBSTACLE_SERVO_PIN    32
 
-// ===== BUZZERS (✅ CORRIGÉS SELON PAGE2.HTML) =====
-#define BUZZER_1_PIN          4     // ✅ Buzzer principal (obstacles) - GPIO4
-#define BUZZER_2_PIN          26    // ✅ Buzzer secondaire (eau) - GPIO26
+// ===== BUZZERS =====
+#define BUZZER_1_PIN          4
+#define BUZZER_2_PIN          26
 #define OBSTACLE_VIBRATOR_PIN 15
 #define WATER_SENSOR_PIN      34
 
-// ===== OBSTACLE DETECTOR - PARAMÈTRES DÉTECTION (✅ AJUSTÉS) =====
+// ===== OBSTACLE DETECTOR - PARAMÈTRES DÉTECTION =====
 #define OBSTACLE_DIST_SECURITE_HAUT  150
 #define OBSTACLE_DIST_SECURITE_BAS   100
 
@@ -69,12 +70,12 @@
 #define OBSTACLE_ANGLE_MIN      0
 #define OBSTACLE_ANGLE_MAX      180
 #define OBSTACLE_ANGLE_STEP     15
-#define OBSTACLE_SERVO_DELAY    150  // ✅ Augmenté de 120 à 150ms
+#define OBSTACLE_SERVO_DELAY    150
 
 // ===== OBSTACLE DETECTOR - FILTRAGE =====
 #define OBSTACLE_BUFFER_SIZE        5
 #define OBSTACLE_SEUIL_VARIATION    40
-#define OBSTACLE_ALERT_COOLDOWN     1500  // ✅ Augmenté de 800 à 1500ms
+#define OBSTACLE_ALERT_COOLDOWN     1500
 
 // ===== BUZZER PWM CHANNELS =====
 #define BUZZER_1_CHANNEL        0
@@ -111,8 +112,8 @@
 #define OBSTACLE_BLE_UPDATE_INTERVAL  500
 #define WATER_BLE_UPDATE_INTERVAL     1000
 
-// ===== OBSTACLE DETECTOR - GÉNÉRAL (✅ AJUSTÉ) =====
-#define OBSTACLE_CHECK_INTERVAL 100  // ✅ Augmenté de 40 à 100ms
+// ===== OBSTACLE DETECTOR - GÉNÉRAL =====
+#define OBSTACLE_CHECK_INTERVAL 100
 
 // ===== SEUILS DE NAVIGATION =====
 #define ARRIVAL_DISTANCE_METERS 10.0
