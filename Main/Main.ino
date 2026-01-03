@@ -8,28 +8,24 @@
 #include "GSMEmergency.h"
 #include "ObstacleDetector.h"
 #include "BluetoothManager.h"
-#include "GPSAssistance.h"
-
 
 // Création d'un port série matériel (UART2) pour communiquer avec le SIM808
 HardwareSerial SIM808(2);
 
 // Initialisation des objets
-GPSTracker gps(SIM808);      // Objet qui gère le GPS
-GSMEmergency gsm(SIM808, gps); // Objet qui gère les urgences GSM
-ObstacleDetector detector; // Objet qui gère détection des obstacles
-BluetoothManager bluetooth(gps); //Objet qui gère des données via bluetooth
-GPSAssistance imu(bluetooth);  // Module IMU (MPU9255)
-
+GPSTracker gps(SIM808);
+GSMEmergency gsm(SIM808, gps);
+ObstacleDetector detector;
+BluetoothManager bluetooth(gps);
 
 // Tableau de pointeurs vers tous les modules à initialiser et mettre à jour
-IModule* modules[] = { &gps, &gsm, &detector, &bluetooth, &imu };
+IModule* modules[] = { &gps, &gsm, &detector, &bluetooth };
 
 // ===== VARIABLES BOUTON ON/OFF =====
-bool systemeActif = true;           // État du système (ON/OFF)
-bool dernierEtatBoutonONOFF = HIGH; // État précédent du bouton ON/OFF
-unsigned long dernierToggle = 0;    // Dernier changement d'état
-const unsigned long DELAI_DEBOUNCE = 200; // Anti-rebond 200ms
+bool systemeActif = true;
+bool dernierEtatBoutonONOFF = HIGH;
+unsigned long dernierToggle = 0;
+const unsigned long DELAI_DEBOUNCE = 200;
 
 // ===== VARIABLES POUR PATTERN BOUTON SOS =====
 bool boutonPrecedent = HIGH;
@@ -41,8 +37,12 @@ bool appuiEnCours = false;
 // Variables pour les indicateurs de statut
 unsigned long lastStatusLog = 0;
 unsigned long lastGPSCheck = 0;
-const unsigned long STATUS_INTERVAL = 10000;  // Log de statut toutes les 10 secondes
-const unsigned long GPS_CHECK_INTERVAL = 5000; // Vérification GPS toutes les 5 secondes
+const unsigned long STATUS_INTERVAL = 10000;
+const unsigned long GPS_CHECK_INTERVAL = 5000;
+
+// ✅ Variables pour envoi BLE
+unsigned long lastObstacleBLESend = 0;
+unsigned long lastWaterBLESend = 0;
 
 // ============================================
 // FONCTION : GESTION BOUTON ON/OFF
@@ -50,27 +50,18 @@ const unsigned long GPS_CHECK_INTERVAL = 5000; // Vérification GPS toutes les 5
 void gererBoutonONOFF() {
     bool etatActuel = digitalRead(BOUTON_ONOFF);
     
-    // Détection d'un appui (transition HIGH -> LOW)
     if (dernierEtatBoutonONOFF == HIGH && etatActuel == LOW) {
-        // Anti-rebond : ignore si moins de 200ms depuis dernier toggle
         if (millis() - dernierToggle > DELAI_DEBOUNCE) {
-            // Inverse l'état du système
             systemeActif = !systemeActif;
             dernierToggle = millis();
             
             if (systemeActif) {
                 Logger::info("=== SYSTÈME ACTIVÉ ===");
-
-                // Allume LED Power (verte)
-                digitalWrite(LED_POWER, HIGH);
-
-                // Réactive tous les modules
                 for (IModule* m : modules) {
                     if (!m->isReady()) {
                         m->init();
                     }
                 }
-                // LED Status clignote 3 fois pour confirmer
                 for (int i = 0; i < 3; i++) {
                     digitalWrite(LED_STATUS, HIGH);
                     delay(200);
@@ -79,25 +70,19 @@ void gererBoutonONOFF() {
                 }
             } else {
                 Logger::info("=== SYSTÈME DÉSACTIVÉ ===");
-
-                // Éteint LED Power (verte)
-                digitalWrite(LED_POWER, LOW);
-
-                // Arrête tous les modules
                 for (IModule* m : modules) {
                     m->stop();
                 }
-                // LED Status éteinte
                 digitalWrite(LED_STATUS, LOW);
                 
-                // Bip de confirmation (2 bips courts)
-                ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
+                // ✅ Signal d'arrêt
+                ledcWriteTone(BUZZER_1_PIN, 1500);
                 delay(100);
-                ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
+                ledcWrite(BUZZER_1_PIN, 0);
                 delay(100);
-                ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
+                ledcWriteTone(BUZZER_1_PIN, 1500);
                 delay(100);
-                ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
+                ledcWrite(BUZZER_1_PIN, 0);
             }
         }
     }
@@ -112,12 +97,10 @@ void detecterPatternBouton() {
     bool boutonActuel = digitalRead(BOUTON_SOS);
     unsigned long maintenant = millis();
 
-    // Détection d'un appui (transition HIGH -> LOW)
     if (boutonPrecedent == HIGH && boutonActuel == LOW) {
         tempsAppui = maintenant;
         appuiEnCours = true;
         
-        // Si c'est le premier clic, on enregistre le temps
         if (compteurClics == 0) {
             tempsPremierAppui = maintenant;
         }
@@ -126,48 +109,25 @@ void detecterPatternBouton() {
         Logger::info("Bouton pressé (clic " + String(compteurClics) + ")");
     }
 
-    // Détection d'un relâchement (transition LOW -> HIGH)
     if (boutonPrecedent == LOW && boutonActuel == HIGH) {
         unsigned long duree = maintenant - tempsAppui;
         appuiEnCours = false;
         
         Logger::info("Bouton relâché (durée: " + String(duree) + "ms)");
         
-        // Appui long détecté (≥ 2 secondes)
         if (duree >= DELAI_APPUI_LONG) {
             Logger::warn("!!! APPUI LONG DETECTE - ALERTE SOS !!!");
-
-        // 🎵 MÉLODIE SOS - Sirène alternée 800↔1500 Hz (3 cycles)
-        for (int i = 0; i < 3; i++) {
-            // Montée
-            ledcWriteTone(OBSTACLE_BUZZER_PIN_1, 800);
-            ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 800);
-            delay(300);
-            
-            // Descente
-            ledcWriteTone(OBSTACLE_BUZZER_PIN_1, 1500);
-            ledcWriteTone(OBSTACLE_BUZZER_PIN_2, 1500);
-            delay(300);
-        }
-        
-            // Arrêt sons
-            ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
-            ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
-
             gsm.sendAlertToAll("URGENCE ! J'ai besoin d'aide !");
             compteurClics = 0;
         }
     }
 
-    // Vérification du timeout pour un simple clic
     if (compteurClics > 0 && !appuiEnCours) {
         if (maintenant - tempsPremierAppui > DELAI_DOUBLE_CLIC) {
-            // Un seul clic court = Message rassurant
             if (compteurClics == 1) {
                 Logger::info("1 clic court détecté - Envoi message 'Tout va bien'");
                 gsm.sendAlertToAll("Tout va bien.");
             }
-            // Double clic ou plus : ignoré pour le moment
             else if (compteurClics >= 2) {
                 Logger::info(String(compteurClics) + " clics détectés - Ignoré");
             }
@@ -183,60 +143,47 @@ void detecterPatternBouton() {
 // SETUP
 // ============================================
 void setup() {
-    // Initialisation de la communication série pour le debug (USB)
     Serial.begin(DEBUG_BAUDRATE);
-
-    // Petit délai pour laisser le moniteur série se connecter
     delay(2000);
     
-    // Initialisation de la communication série avec le module SIM808
-    // SERIAL_8N1 = 8 bits de données, pas de parité, 1 bit d'arrêt
     SIM808.begin(SIM808_BAUDRATE, SERIAL_8N1, SIM808_RX, SIM808_TX);
 
     Logger::info("=== CANNE INTELLIGENTE - DEMARRAGE ===");
 
-    // Configuration du nom BLE
     bluetooth.setDeviceName("OPEN EYES");
 
-    // ===== CONFIGURATION DES BOUTONS =====
-    pinMode(BOUTON_SOS, INPUT_PULLUP);     // Bouton SOS avec résistance PULLUP interne
-    pinMode(BOUTON_ONOFF, INPUT_PULLUP);   // Bouton ON/OFF avec résistance PULLUP interne
+    pinMode(BOUTON_SOS, INPUT_PULLUP);
+    pinMode(BOUTON_ONOFF, INPUT_PULLUP);
 
-    // Configuration des LEDs
-    pinMode(LED_POWER, OUTPUT);            // LED verte Power
-    pinMode(LED_STATUS, OUTPUT);           // LED rouge Status
-    digitalWrite(LED_POWER, HIGH);         // LED Power allumée au démarrage
+    pinMode(LED_STATUS, OUTPUT);
     digitalWrite(LED_STATUS, LOW);
 
-    // Configuration des buzzers
-    ledcAttach(OBSTACLE_BUZZER_PIN_1, 2000, OBSTACLE_BUZZER_RES);  // Buzzer 1
-    ledcAttach(OBSTACLE_BUZZER_PIN_2, 2000, OBSTACLE_BUZZER_RES);  // Buzzer 2
-    ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
-    ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
+    // ✅ CONFIGURATION DES 2 BUZZERS (UNE SEULE FOIS ICI)
+    Logger::info("Configuration PWM Buzzers...");
+    ledcAttach(BUZZER_1_PIN, 2000, BUZZER_1_RES);
+    ledcWrite(BUZZER_1_PIN, 0);
+    Logger::info("Buzzer 1 (GPIO " + String(BUZZER_1_PIN) + ") - Obstacles");
+    
+    ledcAttach(BUZZER_2_PIN, 2000, BUZZER_2_RES);
+    ledcWrite(BUZZER_2_PIN, 0);
+    Logger::info("Buzzer 2 (GPIO " + String(BUZZER_2_PIN) + ") - Eau");
 
-    // Initialisation de tous les modules
+    // ✅ Initialisation des modules (ObstacleDetector n'initialisera PAS les buzzers)
     for (IModule* m : modules) {
         m->init();
     }
     
-    // Bip de démarrage (REMPLACE l'ancienne boucle)
+    // ✅ Test de démarrage (3 bips)
     for (int i = 0; i < 3; i++) {
-        ledcWriteTone(OBSTACLE_BUZZER_PIN_1, OBSTACLE_FREQ_DEMARRAGE);
-        ledcWriteTone(OBSTACLE_BUZZER_PIN_2, OBSTACLE_FREQ_DEMARRAGE);
+        ledcWriteTone(BUZZER_1_PIN, OBSTACLE_FREQ_DEMARRAGE);
         delay(150);
-        ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
-        ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
+        ledcWrite(BUZZER_1_PIN, 0);
         delay(150);
     }
-
 
     Logger::info("=== SYSTEME OPERATIONNEL ===");
     Logger::info("Nom BLE: OPEN EYES");
     Logger::info("Contacts enregistrés: " + String(gsm.getNombreContacts()));
-    Logger::info("");
-    Logger::info("--- BOUTONS ---");
-    Logger::info("Bouton VERT (GPIO12) = ON/OFF système");
-    Logger::info("Bouton ROUGE (GPIO13) = SOS");
     Logger::info("");
     Logger::info("--- COMMANDES SMS ADMIN ---");
     Logger::info("ADMIN:ADD:+237XXX - Ajouter contact");
@@ -249,51 +196,52 @@ void setup() {
     Logger::info("1 clic court = Message 'Tout va bien'");
     Logger::info("Appui long (2s) = Alerte SOS complète");
     Logger::info("---------------------------");
+    Logger::info("");
+    Logger::info("--- SYSTÈME DE DÉTECTION ---");
+    Logger::info("Buzzer 1 (GPIO " + String(BUZZER_1_PIN) + ") = Obstacles");
+    Logger::info("Buzzer 2 (GPIO " + String(BUZZER_2_PIN) + ") = Eau");
+    Logger::info("Capteur eau (GPIO " + String(WATER_SENSOR_PIN) + ")");
+    Logger::info("Vibration (GPIO " + String(OBSTACLE_VIBRATOR_PIN) + ")");
+    Logger::info("---------------------------");
 }
 
 // ============================================
-// LOOP
+// LOOP (✅ AVEC DÉLAI AUGMENTÉ)
 // ============================================
 void loop() {
-    // ===== GESTION BOUTON ON/OFF (TOUJOURS ACTIF) =====
     gererBoutonONOFF();
 
-    // ===== SI SYSTÈME INACTIF, ON NE FAIT RIEN D'AUTRE =====
     if (!systemeActif) {
-        delay(100); // Économie d'énergie
-        return;     // Sort de loop() sans exécuter le reste
+        delay(100);
+        return;
     }
 
-    // ===== SYSTÈME ACTIF : FONCTIONNEMENT NORMAL =====
-
-    // Mise à jour de tous les modules à chaque itération
+    // ✅ Update des modules
     for (IModule* m : modules) {
         m->update();
     }
 
-    // ===== DETECTION DES PATTERNS DU BOUTON =====
     detecterPatternBouton();
 
-    // ===== INDICATEUR DE STATUT PERIODIQUE =====
     unsigned long currentTime = millis();
 
-    // Affiche un log de statut toutes les 10 secondes
     if (currentTime - lastStatusLog >= STATUS_INTERVAL) {
         Logger::info("--- Statut Système ---");
-        Logger::info("Système: " + String(systemeActif ? "ON" : "OFF"));
         Logger::info("BLE Connecté: " + String(bluetooth.isClientConnected() ? "OUI" : "NON"));
         Logger::info("GPS Prêt: " + String(gps.isReady() ? "OUI" : "NON"));
         Logger::info("GSM Prêt: " + String(gsm.isReady() ? "OUI" : "NON"));
         Logger::info("Détecteur Prêt: " + String(detector.isReady() ? "OUI" : "NON"));
         Logger::info("Contacts EEPROM: " + String(gsm.getNombreContacts()) + "/" + String(MAX_CONTACTS));
+        
+        WaterSensorData waterData = detector.getWaterSensorData();
+        Logger::info("Capteur Eau: " + String(waterData.humidityLevel) + "% (raw: " + String(waterData.rawData) + ")");
+        
         Logger::info("----------------------");
         
         lastStatusLog = currentTime;
     }
 
-    // ===== VERIFICATION GPS PERIODIQUE =====
     if (currentTime - lastGPSCheck >= GPS_CHECK_INTERVAL) {
-        // Récupère et affiche les données GPS
         GPSData gpsData = gps.getGPSData();
         
         if (gpsData.isValid) {
@@ -309,34 +257,23 @@ void loop() {
         lastGPSCheck = currentTime;
     }
 
-    // ===== ENVOI DES DONNEES BLUETOOTH SI CLIENT CONNECTE =====
-    static unsigned long lastManualSend = 0;
-    if (bluetooth.isClientConnected() && currentTime - lastManualSend >= GPS_UPDATE_INTERVAL) {
-        // Envoie les données d'obstacles
-        ObstacleData obstacleData = detector.getObstacleData();
-        bluetooth.sendObstacleData(obstacleData);
-        
-        // Envoie les données du capteur d'eau
-        WaterSensorData waterData = detector.getWaterSensorData();
-        bluetooth.sendWaterSensorData(waterData);
-
-        // Envoie les données GPS
-        bluetooth.sendGPSData();
-
-            // ===== IMU (YAW / PITCH / ROLL) =====
-        IMUData imuData = imu.getIMUData();
-        bluetooth.sendImuData({
-            imuData.yaw,
-            imuData.pitch,
-            imuData.roll
-        });
-
-        
-        lastManualSend = currentTime;
+    // ✅ Envoi BLE obstacles et eau séparément
+    if (currentTime - lastObstacleBLESend >= OBSTACLE_BLE_UPDATE_INTERVAL) {
+        if (bluetooth.isClientConnected()) {
+            ObstacleData obstacleData = detector.getObstacleData();
+            bluetooth.sendObstacleData(obstacleData);
+        }
+        lastObstacleBLESend = currentTime;
     }
 
-    // ===== INDICATEUR VISUEL (LED) =====
-    // LED clignote pour montrer que le système fonctionne
+    if (currentTime - lastWaterBLESend >= WATER_BLE_UPDATE_INTERVAL) {
+        if (bluetooth.isClientConnected()) {
+            WaterSensorData waterData = detector.getWaterSensorData();
+            bluetooth.sendWaterSensorData(waterData);
+        }
+        lastWaterBLESend = currentTime;
+    }
+
     static unsigned long lastBlink = 0;
     static bool ledState = false;
     
@@ -345,10 +282,11 @@ void loop() {
         digitalWrite(LED_STATUS, ledState);
         lastBlink = currentTime;
     }
-
-    // Petit délai pour ne pas surcharger le processeur
-    delay(10);
+    
+    // ✅ Délai augmenté de 10ms à 50ms pour laisser respirer le système
+    delay(50);
 }
+
 
 // ============================================
 // GUIDE D'UTILISATION

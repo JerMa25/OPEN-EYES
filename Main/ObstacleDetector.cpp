@@ -1,4 +1,4 @@
-// ObstacleDetector.cpp
+// ObstacleDetector.cpp - ✅ VERSION CORRIGÉE
 #include "ObstacleDetector.h"
 #include "Logger.h"
 #include "Config.h"
@@ -18,11 +18,11 @@ ObstacleDetector::ObstacleDetector()
       lastAlertTimeBas(0),
       lastDistanceHaut(-1),
       lastDistanceBas(-1),
-      lastWaterValue(0),
-      lastWaterLevel(WATER_NONE),
-      lastWaterCheck(0),
-      lastWaterAlert(0),
-      waterAlertActive(false) {
+      lastWaterLevel(0),
+      waterRawValue(0),
+      lastWaterCheckTime(0),
+      lastWaterAlertTime(0),
+      lastObstacleCheckTime(0) {  // ✅ AJOUTÉ
     
     for (int i = 0; i < OBSTACLE_BUFFER_SIZE; i++) {
         bufferHaut[i] = 999;
@@ -42,58 +42,64 @@ void ObstacleDetector::init() {
     pinMode(OBSTACLE_TRIG_LOW, OUTPUT);
     pinMode(OBSTACLE_ECHO_LOW, INPUT);
 
-    // Configuration du capteur d'eau (ADC)
-    pinMode(WATER_SENSOR_PIN, INPUT);
-    Logger::info("Capteur eau configuré sur GPIO " + String(WATER_SENSOR_PIN));
-
     // Configuration du servo
     servoMoteur.setPeriodHertz(50);
     servoMoteur.attach(OBSTACLE_SERVO_PIN, 500, 2400);
     servoMoteur.write(90);
+    delay(200);  // ✅ Laisser le servo se stabiliser
 
-    // Configuration des 2 buzzers (PWM ESP32 v3.x)
-    ledcAttach(OBSTACLE_BUZZER_PIN_1, 2000, OBSTACLE_BUZZER_RES);
-    ledcAttach(OBSTACLE_BUZZER_PIN_2, 2000, OBSTACLE_BUZZER_RES);
-    ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
-    ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
-    Logger::info("2 Buzzers synchronisés sur GPIO4 + GPIO26");
+    // ✅ SUPPRESSION de l'initialisation PWM (déjà fait dans Main.ino)
+    // Les buzzers sont déjà configurés dans setup()
 
     // Configuration du moteur vibrant
     pinMode(OBSTACLE_VIBRATOR_PIN, OUTPUT);
     digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
     Logger::info("Moteur vibrant configuré sur GPIO " + String(OBSTACLE_VIBRATOR_PIN));
 
-    // Bip + Vibration de démarrage (3 fois)
-    for (int i = 0; i < 3; i++) {
-        jouerToneDual(OBSTACLE_FREQ_DEMARRAGE);
-        vibrerCourt();
-        delay(150);
-        stopToneDual();
-        delay(200);
-    }
+    // ✅ CAPTEUR D'EAU - GPIO 34 (Analogique)
+    pinMode(WATER_SENSOR_PIN, INPUT);
+    Logger::info("Capteur d'eau configuré sur GPIO " + String(WATER_SENSOR_PIN));
+
+    // ✅ Test des 2 buzzers au démarrage (SIMPLIFIÉ)
+    Logger::info("Test buzzers...");
+    buzzer1Tone(OBSTACLE_FREQ_DEMARRAGE);
+    delay(200);
+    buzzer1Off();
+    delay(100);
+    
+    buzzer2Tone(WATER_FREQ_ALERT);
+    delay(200);
+    buzzer2Off();
+    delay(100);
 
     ready = true;
-    Logger::info("Détection complète prête (Obstacles + Eau)");
+    Logger::info("Système complet prêt (obstacles + eau + vibration)");
 }
 
 // =======================================================
-// UPDATE
+// UPDATE (✅ AVEC THROTTLE)
 // =======================================================
 void ObstacleDetector::update() {
     if (!ready) return;
 
-    // Vérification obstacle haut
+    unsigned long currentTime = millis();
+    
+    // ✅ THROTTLE : Ne vérifier que toutes les OBSTACLE_CHECK_INTERVAL ms
+    if (currentTime - lastObstacleCheckTime < OBSTACLE_CHECK_INTERVAL) {
+        return;
+    }
+    
+    lastObstacleCheckTime = currentTime;
+
+    // Vérifier obstacles
     verifierObstacleHaut();
-    delay(40);
-    
-    // Balayage sol
+    delay(80);  // ✅ Augmenté de 60 à 80ms
     balayerNiveauBas();
-    delay(40);
+    delay(80);  // ✅ Augmenté de 60 à 80ms
     
-    // Vérification eau (toutes les 500ms)
-    if (millis() - lastWaterCheck >= 500) {
-        verifierCapteurEau();
-        lastWaterCheck = millis();
+    // Vérifier eau
+    if (WATER_SENSOR_ENABLED) {
+        verifierEau();
     }
 }
 
@@ -102,7 +108,8 @@ void ObstacleDetector::update() {
 // =======================================================
 void ObstacleDetector::stop() {
     Logger::info("Arrêt détection obstacles + eau");
-    stopToneDual();
+    buzzer1Off();
+    buzzer2Off();
     stopVibration();
     servoMoteur.detach();
     ready = false;
@@ -141,7 +148,7 @@ bool ObstacleDetector::hasObstacleLow() const {
 }
 
 // =======================================================
-// GET OBSTACLE DATA FOR BLE
+// ✅ GET OBSTACLE DATA FOR BLE
 // =======================================================
 ObstacleData ObstacleDetector::getObstacleData() const {
     ObstacleData data;
@@ -152,15 +159,14 @@ ObstacleData ObstacleDetector::getObstacleData() const {
 }
 
 // =======================================================
-// GET WATER SENSOR DATA FOR BLE (MAINTENANT RÉEL !)
+// ✅ GET WATER SENSOR DATA FOR BLE
 // =======================================================
 WaterSensorData ObstacleDetector::getWaterSensorData() const {
     WaterSensorData data;
+    data.rawData = waterRawValue;
     
-    // Conversion valeur ADC (0-4095) en pourcentage
-    // Plus la valeur est haute, plus il y a d'eau
-    data.humidityLevel = map(lastWaterValue, 0, 4095, 0, 100);
-    data.rawData = lastWaterValue;
+    data.humidityLevel = map(waterRawValue, 0, 4095, 0, 100);
+    data.humidityLevel = constrain(data.humidityLevel, 0, 100);
     
     return data;
 }
@@ -190,10 +196,8 @@ void ObstacleDetector::verifierObstacleHaut() {
 
         unsigned long now = millis();
         if (now - lastAlertTimeHaut > OBSTACLE_ALERT_COOLDOWN) {
-            // 🎵 MÉLODIE OBSTACLE PROGRESSIF
-            melodieObstacleProgressif(distance);
+            alerterObstacle(distance, OBSTACLE_FREQ_HAUT);
             
-            // Vibration HAUT : 2 vibrations courtes
             if (OBSTACLE_VIBRATION_ENABLED) {
                 vibrerPattern(2);
             }
@@ -245,17 +249,19 @@ void ObstacleDetector::balayerNiveauBas() {
 
         unsigned long now = millis();
         if (now - lastAlertTimeBas > OBSTACLE_ALERT_COOLDOWN) {
-            // 🎵 MÉLODIE TROU/ESCALIER (3 bips rapides)
-            melodieTrouEscalier();
+            int freq = (angleActuel < 60)  ? OBSTACLE_FREQ_BAS_GAUCHE :
+                       (angleActuel > 120) ? OBSTACLE_FREQ_BAS_DROITE : 
+                                             OBSTACLE_FREQ_BAS_CENTRE;
+
+            alerterObstacle(distance, freq);
             
-            // Vibration BAS : Pattern selon direction
             if (OBSTACLE_VIBRATION_ENABLED) {
                 if (angleActuel < 60) {
-                    vibrerLong();  // GAUCHE : 1 longue
+                    vibrerLong();
                 } else if (angleActuel > 120) {
-                    vibrerPattern(3);  // DROITE : 3 courtes
+                    vibrerPattern(3);
                 } else {
-                    vibrerCourt();  // CENTRE : 1 courte
+                    vibrerCourt();
                 }
             }
             
@@ -265,86 +271,83 @@ void ObstacleDetector::balayerNiveauBas() {
 }
 
 // =======================================================
-// VÉRIFIER CAPTEUR EAU (NOUVELLE MÉTHODE)
+// ✅ VÉRIFIER EAU
 // =======================================================
-void ObstacleDetector::verifierCapteurEau() {
-    // Lecture ADC (0-4095 sur ESP32)
-    lastWaterValue = analogRead(WATER_SENSOR_PIN);
+void ObstacleDetector::verifierEau() {
+    unsigned long currentTime = millis();
     
-    // Déterminer le niveau d'eau
-    WaterLevel niveau = determinerNiveauEau(lastWaterValue);
+    if (currentTime - lastWaterCheckTime < WATER_CHECK_INTERVAL) {
+        return;
+    }
     
-    // Si changement de niveau
-    if (niveau != lastWaterLevel) {
-        lastWaterLevel = niveau;
-        
-        switch(niveau) {
-            case WATER_NONE:
-                Logger::info("Capteur eau : SEC (valeur=" + String(lastWaterValue) + ")");
-                waterAlertActive = false;
-                stopToneDual();
-                stopVibration();
-                break;
-                
-            case WATER_HUMID:
-                Logger::warn("Capteur eau : HUMIDE détectée ! (valeur=" + String(lastWaterValue) + ")");
-                if (millis() - lastWaterAlert > 3000) {  // Max 1 alerte / 3 secondes
-                    // 🎵 MÉLODIE EAU
-                    melodieEauDetectee();
-                    
-                    // Vibration courte
-                    if (OBSTACLE_VIBRATION_ENABLED) {
-                        vibrerPattern(2);
-                    }
-                    
-                    lastWaterAlert = millis();
-                }
-                break;
-                
-            case WATER_FLOOD:
-                Logger::error("Capteur eau : INONDATION ! (valeur=" + String(lastWaterValue) + ")");
-                if (!waterAlertActive) {
-                    waterAlertActive = true;
-                    
-                    // 🎵 MÉLODIE EAU en boucle
-                    for (int i = 0; i < 3; i++) {
-                        melodieEauDetectee();
-                        delay(200);
-                    }
-                    
-                    // Vibration continue 1 seconde
-                    if (OBSTACLE_VIBRATION_ENABLED) {
-                        vibrerContinue(1000);
-                    }
-                    
-                    lastWaterAlert = millis();
-                }
-                break;
+    lastWaterCheckTime = currentTime;
+    int niveau = lireNiveauEau();
+    
+    if (niveau > WATER_THRESHOLD_LOW) {
+        if (currentTime - lastWaterAlertTime > WATER_ALERT_COOLDOWN) {
+            alerterEau(niveau);
+            lastWaterAlertTime = currentTime;
         }
     }
+}
+
+// =======================================================
+// ✅ LIRE NIVEAU EAU
+// =======================================================
+int ObstacleDetector::lireNiveauEau() {
+    waterRawValue = analogRead(WATER_SENSOR_PIN);
     
-    // Si eau détectée (humide ou inondation), rappel périodique
-    if (niveau != WATER_NONE && millis() - lastWaterAlert > 5000) {
-        melodieEauDetectee();
-        lastWaterAlert = millis();
+    static int readings[5] = {0, 0, 0, 0, 0};
+    static int index = 0;
+    
+    readings[index] = waterRawValue;
+    index = (index + 1) % 5;
+    
+    int sum = 0;
+    for (int i = 0; i < 5; i++) {
+        sum += readings[i];
+    }
+    
+    int niveau = sum / 5;
+    lastWaterLevel = niveau;
+    
+    return niveau;
+}
+
+// =======================================================
+// ✅ ALERTER EAU (BUZZER 2)
+// =======================================================
+void ObstacleDetector::alerterEau(int niveau) {
+    if (niveau > WATER_THRESHOLD_HIGH) {
+        Logger::warn("EAU DÉTECTÉE - Niveau ÉLEVÉ: " + String(niveau));
+        
+        buzzer2Tone(WATER_FREQ_WARNING);
+        delay(300);
+        buzzer2Off();
+        delay(100);
+        buzzer2Tone(WATER_FREQ_WARNING);
+        delay(300);
+        buzzer2Off();
+        
+        if (OBSTACLE_VIBRATION_ENABLED) {
+            vibrerPattern(4);
+        }
+        
+    } else if (niveau > WATER_THRESHOLD_LOW) {
+        Logger::info("Eau détectée - Niveau moyen: " + String(niveau));
+        
+        buzzer2Tone(WATER_FREQ_ALERT);
+        delay(300);
+        buzzer2Off();
+        
+        if (OBSTACLE_VIBRATION_ENABLED) {
+            vibrerCourt();
+        }
     }
 }
 
 // =======================================================
-// DÉTERMINER NIVEAU EAU (NOUVELLE MÉTHODE)
-// =======================================================
-WaterLevel ObstacleDetector::determinerNiveauEau(int valeurBrute) {
-    if (valeurBrute < WATER_SEUIL_SEC) {
-        return WATER_NONE;  // Sec
-    } else if (valeurBrute < WATER_SEUIL_HUMIDE) {
-        return WATER_HUMID;  // Humide
-    } else {
-        return WATER_FLOOD;  // Inondation
-    }
-}
-
-// =======================================================
-// MESURE DISTANCE
+// MESURE DISTANCE (✅ TIMEOUT AUGMENTÉ)
 // =======================================================
 int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
     digitalWrite(trigPin, LOW);
@@ -353,7 +356,8 @@ int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
 
-    long duration = pulseIn(echoPin, HIGH, 30000);
+    // ✅ Timeout augmenté à 50ms (au lieu de 30ms)
+    long duration = pulseIn(echoPin, HIGH, 50000);
     if (duration == 0) return -1;
 
     int distance = duration * 0.034 / 2;
@@ -386,123 +390,44 @@ int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
 }
 
 // =======================================================
-// ALERTER GÉNÉRIQUE (ANCIENNE MÉTHODE - CONSERVÉE)
+// ALERTER OBSTACLE (BUZZER 1)
 // =======================================================
-void ObstacleDetector::alerter(int distance, int frequence) {
+void ObstacleDetector::alerterObstacle(int distance, int frequence) {
     distance = constrain(distance, 2, 150);
     int duree = map(distance, 2, 150, 300, 50);
 
-    jouerToneDual(frequence);
+    buzzer1Tone(frequence);
     delay(duree);
-    stopToneDual();
+    buzzer1Off();
     delay(50);
 }
 
 // =======================================================
-// 🎵 MÉLODIE OBSTACLE PROGRESSIF (NOUVELLE)
+// ✅ BUZZER 1 - ON
 // =======================================================
-void ObstacleDetector::melodieObstacleProgressif(int distance) {
-    // Plus l'obstacle est proche, plus le son est aigu et rapide
-    
-    // Calcul fréquence : 500 Hz (loin) -> 4000 Hz (proche)
-    int frequence = map(distance, 2, 150, 
-                       MELODIE_OBSTACLE_FREQ_MAX, 
-                       MELODIE_OBSTACLE_FREQ_MIN);
-    
-    // Calcul durée bip : Long (loin) -> Court (proche)
-    int dureeBip = map(distance, 2, 150, 50, 300);
-    
-    // Calcul pause : Courte (proche) -> Longue (loin)
-    int dureePause = map(distance, 2, 150, 50, 500);
-    
-    // Jouer le bip
-    jouerToneDual(frequence);
-    delay(dureeBip);
-    stopToneDual();
-    delay(dureePause);
+void ObstacleDetector::buzzer1Tone(int frequence) {
+    ledcWriteTone(BUZZER_1_PIN, frequence);
 }
 
 // =======================================================
-// 🎵 MÉLODIE TROU/ESCALIER (NOUVELLE)
+// ✅ BUZZER 1 - OFF
 // =======================================================
-void ObstacleDetector::melodieTrouEscalier() {
-    // 3 bips rapides aigus + vibration
-    
-    for (int i = 0; i < MELODIE_TROU_BIPS; i++) {
-        jouerToneDual(MELODIE_TROU_FREQ);
-        delay(MELODIE_TROU_DUREE);
-        stopToneDual();
-        
-        if (i < MELODIE_TROU_BIPS - 1) {
-            delay(MELODIE_TROU_PAUSE);
-        }
-    }
-    
-    // Vibration 500ms
-    if (OBSTACLE_VIBRATION_ENABLED) {
-        digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
-        delay(500);
-        digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
-    }
+void ObstacleDetector::buzzer1Off() {
+    ledcWrite(BUZZER_1_PIN, 0);
 }
 
 // =======================================================
-// 🎵 MÉLODIE EAU DÉTECTÉE (NOUVELLE)
+// ✅ BUZZER 2 - ON
 // =======================================================
-void ObstacleDetector::melodieEauDetectee() {
-    // Mélodie descendante "goutte d'eau" : 1500 -> 1000 -> 800 Hz
-    
-    // Note 1 (aiguë)
-    jouerToneDual(MELODIE_EAU_FREQ_1);
-    delay(MELODIE_EAU_DUREE_NOTE);
-    stopToneDual();
-    delay(MELODIE_EAU_PAUSE);
-    
-    // Note 2 (moyenne)
-    jouerToneDual(MELODIE_EAU_FREQ_2);
-    delay(MELODIE_EAU_DUREE_NOTE);
-    stopToneDual();
-    delay(MELODIE_EAU_PAUSE);
-    
-    // Note 3 (grave)
-    jouerToneDual(MELODIE_EAU_FREQ_3);
-    delay(MELODIE_EAU_DUREE_NOTE);
-    stopToneDual();
+void ObstacleDetector::buzzer2Tone(int frequence) {
+    ledcWriteTone(BUZZER_2_PIN, frequence);
 }
 
 // =======================================================
-// 🎵 MÉLODIE SOS (NOUVELLE)
+// ✅ BUZZER 2 - OFF
 // =======================================================
-void ObstacleDetector::melodieSOS() {
-    // Sirène alternée : 800 <-> 1500 Hz (3 cycles)
-    
-    for (int i = 0; i < MELODIE_SOS_CYCLES; i++) {
-        // Montée
-        jouerToneDual(MELODIE_SOS_FREQ_BAS);
-        delay(MELODIE_SOS_DUREE);
-        
-        // Descente
-        jouerToneDual(MELODIE_SOS_FREQ_HAUT);
-        delay(MELODIE_SOS_DUREE);
-    }
-    
-    stopToneDual();
-}
-
-// =======================================================
-// JOUER TONE DUAL (NOUVELLE - 2 BUZZERS)
-// =======================================================
-void ObstacleDetector::jouerToneDual(int frequence) {
-    ledcWriteTone(OBSTACLE_BUZZER_PIN_1, frequence);
-    ledcWriteTone(OBSTACLE_BUZZER_PIN_2, frequence);
-}
-
-// =======================================================
-// STOP TONE DUAL (NOUVELLE)
-// =======================================================
-void ObstacleDetector::stopToneDual() {
-    ledcWrite(OBSTACLE_BUZZER_PIN_1, 0);
-    ledcWrite(OBSTACLE_BUZZER_PIN_2, 0);
+void ObstacleDetector::buzzer2Off() {
+    ledcWrite(BUZZER_2_PIN, 0);
 }
 
 // =======================================================
@@ -536,15 +461,6 @@ void ObstacleDetector::vibrerPattern(int count) {
             delay(OBSTACLE_VIBRATION_PAUSE);
         }
     }
-}
-
-// =======================================================
-// VIBRATION CONTINUE (NOUVELLE)
-// =======================================================
-void ObstacleDetector::vibrerContinue(unsigned long duree) {
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
-    delay(duree);
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
 }
 
 // =======================================================

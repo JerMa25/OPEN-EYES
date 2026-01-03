@@ -1,4 +1,4 @@
-// ObstacleDetector.h
+// ObstacleDetector.h - ✅ VERSION CORRIGÉE
 #ifndef OBSTACLE_DETECTOR_H
 #define OBSTACLE_DETECTOR_H
 
@@ -13,13 +13,6 @@ struct ObstacleInfo {
     int angle = 0;
     bool isHigh = false;
     unsigned long timestamp = 0;
-};
-
-// Énumération pour les niveaux d'eau
-enum WaterLevel {
-    WATER_NONE = 0,      // Sec
-    WATER_HUMID = 1,     // Humide
-    WATER_FLOOD = 2      // Inondation
 };
 
 class ObstacleDetector : public IModule {
@@ -38,22 +31,19 @@ class ObstacleDetector : public IModule {
     // Méthodes pour Bluetooth
     ObstacleData getObstacleData() const;
     WaterSensorData getWaterSensorData() const;
-    // 🎵 MÉLODIE SOS (NOUVELLE)
-        void melodieSOS();                             // Sirène
 
   private:
+    // Servo
     Servo servoMoteur;
     int angleActuel;
     bool directionDroite;
     bool ready;
 
+    // Obstacles
     ObstacleInfo lastObstacle;
-    
-    // Variables pour Bluetooth
     int lastDistanceHaut;
     int lastDistanceBas;
 
-    // Buffers filtrage
     int bufferHaut[5];
     int bufferBas[5];
     int indexBufferHaut;
@@ -64,45 +54,39 @@ class ObstacleDetector : public IModule {
 
     unsigned long lastAlertTimeHaut;
     unsigned long lastAlertTimeBas;
-    
-    // ===== CAPTEUR D'EAU =====
-    int lastWaterValue;              // Dernière valeur lue (0-4095)
-    WaterLevel lastWaterLevel;       // Dernier niveau détecté
-    unsigned long lastWaterCheck;    // Dernier check eau
-    unsigned long lastWaterAlert;    // Dernière alerte eau
-    bool waterAlertActive;           // Alerte eau en cours
 
-    // ===== MÉTHODES PRIVÉES =====
+    // Capteur d'eau
+    int lastWaterLevel;
+    int waterRawValue;
+    unsigned long lastWaterCheckTime;
+    unsigned long lastWaterAlertTime;
     
-    // Détection obstacles (existantes)
+    // ✅ AJOUTÉ : Throttle pour éviter trop de vérifications
+    unsigned long lastObstacleCheckTime;
+
+    // Fonctions obstacles
     void verifierObstacleHaut();
     void balayerNiveauBas();
     int mesureDistance(int trigPin, int echoPin);
     int mesureDistanceFiltre(int trigPin, int echoPin, int* buffer, int* index);
+    void alerterObstacle(int distance, int frequence);
     
-    // Détection eau (NOUVELLES)
-    void verifierCapteurEau();
-    WaterLevel determinerNiveauEau(int valeurBrute);
+    // Fonctions eau
+    void verifierEau();
+    int lireNiveauEau();
+    void alerterEau(int niveau);
     
-    // Alertes sonores génériques (existante mais modifiée)
-    void alerter(int distance, int frequence);
-    
-    // Mélodies différenciées (NOUVELLES)
-    void melodieObstacleProgressif(int distance);  // Bips progressifs
-    void melodieTrouEscalier();                    // 3 bips rapides + vibration
-    void melodieEauDetectee();                     // Mélodie descendante
-
-    
-    // Contrôle buzzers (NOUVELLES)
-    void jouerToneDual(int frequence);             // Joue sur les 2 buzzers
-    void stopToneDual();                           // Arrête les 2 buzzers
-    
-    // Vibration (existantes)
+    // Fonctions vibration
     void vibrerCourt();
     void vibrerLong();
     void vibrerPattern(int count);
-    void vibrerContinue(unsigned long duree);      // NOUVELLE
     void stopVibration();
+    
+    // Fonctions buzzers
+    void buzzer1Tone(int frequence);
+    void buzzer1Off();
+    void buzzer2Tone(int frequence);
+    void buzzer2Off();
 };
 
 #endif
