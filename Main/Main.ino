@@ -8,6 +8,7 @@
 #include "GSMEmergency.h"
 #include "ObstacleDetector.h"
 #include "BluetoothManager.h"
+#include <ESP32Servo.h>
 
 HardwareSerial SIM808(2);
 
@@ -72,9 +73,9 @@ void gererBoutonONOFF() {
                // ✅ Signal d'arrêt (ESP32 Core 3.x)
                 ledcWriteTone(BUZZER_1_PIN, 1500);
                 delay(100);
-                ledcWrite(BUZZER_1_PIN, 0);
+                ledcWrite(BUZZER_1_CHANNEL, 0);
                 delay(100);
-                ledcWriteTone(BUZZER_1_PIN, 1500);
+                ledcWriteTone(BUZZER_1_CHANNEL, 1500);
                 delay(100);
                 ledcWrite(BUZZER_1_PIN, 0);
             }
@@ -195,13 +196,13 @@ void setup() {
     Logger::info("🔊 [SETUP] BUZZER 1 : GPIO" + String(BUZZER_1_PIN));
     
     // ✅ API ESP32 Core 3.x
+    // BUZZER 1
     ledcAttach(BUZZER_1_PIN, 2000, BUZZER_1_RES);
-    ledcWrite(BUZZER_1_PIN, 0);
     Logger::info("✅ [SETUP] BUZZER 1 configuré");
     
     Logger::info("🔊 [SETUP] BUZZER 2 : GPIO" + String(BUZZER_2_PIN));
+    // BUZZER 2
     ledcAttach(BUZZER_2_PIN, 2000, BUZZER_2_RES);
-    ledcWrite(BUZZER_2_PIN, 0);
     Logger::info("✅ [SETUP] BUZZER 2 configuré");
 
     // ===== INIT MODULES =====
@@ -225,7 +226,7 @@ void setup() {
     Logger::info("🔊 [SETUP] Test bips démarrage...");
     for (int i = 0; i < 3; i++) {
         Logger::info("🔊 [TEST] Bip " + String(i+1) + "/3");
-        ledcWriteTone(BUZZER_1_PIN, OBSTACLE_FREQ_DEMARRAGE);
+        ledcWriteTone(BUZZER_1_CHANNEL, OBSTACLE_FREQ_DEMARRAGE);
         delay(150);
         ledcWrite(BUZZER_1_PIN, 0);
         delay(150);

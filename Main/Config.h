@@ -3,7 +3,7 @@
 
 // ===== ACTIVATION DES LOGS =====
 #define LOG_ENABLED true
-#define DEBUG_MODE true  // ✅ NOUVEAU : Mode debug ultra-verbeux
+#define DEBUG_MODE false  // ✅ NOUVEAU : Mode debug ultra-verbeux
 
 // ===== PINS DU MODULE SIM808 =====
 #define SIM808_RX         17
@@ -54,7 +54,7 @@
 #define OBSTACLE_ECHO_HIGH    18
 #define OBSTACLE_TRIG_LOW     19
 #define OBSTACLE_ECHO_LOW     21
-#define OBSTACLE_SERVO_PIN    35
+#define OBSTACLE_SERVO_PIN    23
 
 // ===== BUZZERS =====
 #define BUZZER_1_PIN          4
@@ -128,7 +128,7 @@
 #define REG_ACCEL 0x3B
 #define REG_PWR   0x6B
 #define MPU_SCL_PIN 22
-#define MPU_SDA_PIN 23
+#define MPU_SDA_PIN 35
 
 
 #endif

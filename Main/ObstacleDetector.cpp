@@ -146,9 +146,8 @@ void ObstacleDetector::update() {
 
     // Vérifier obstacles
     verifierObstacleHaut();
-    delay(80);
     balayerNiveauBas();
-    delay(80);
+
     
     // Vérifier eau
     if (WATER_SENSOR_ENABLED) {
