@@ -59,7 +59,7 @@ class BluetoothManager : public IModule {
     void sendGPSData();                                    // GPS
     void sendWaterSensorData(const WaterSensorData& data); // Capteur d'eau
     void sendObstacleData(const ObstacleData& data);       // Détection obstacles
-    void sendImuData(const ImuData& data);                 // IMU (orientation)
+    void sendImuData(const IMUData& data);                 // IMU (orientation)
     
     // Active/désactive l'envoi automatique
     void enableAutoSend(bool enable);

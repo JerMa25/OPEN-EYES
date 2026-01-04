@@ -6,13 +6,6 @@
 #include "Logger.h"
 #include "BluetoothManager.h"
 
-// Données IMU calculées
-struct IMUData {
-    float yaw;
-    float pitch;
-    float roll;
-};
-
 class GPSAssistance : public IModule {
   public:
     GPSAssistance(BluetoothManager& bt);

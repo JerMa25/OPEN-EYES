@@ -30,7 +30,7 @@ void GPSAssistance::update() {
 
     readIMU();
 
-    ImuData data;
+    IMUData data;
     data.yaw   = imuData.yaw;
     data.pitch = imuData.pitch;
     data.roll  = imuData.roll;

@@ -193,7 +193,7 @@ void BluetoothManager::sendObstacleData(const ObstacleData& data) {
 }
 
 // Envoie les données IMU (orientation) via BLE
-void BluetoothManager::sendImuData(const ImuData& data) {
+void BluetoothManager::sendImuData(const IMUData& data) {
     if (!deviceConnected) return;
     
     // Formate les données en JSON selon le format attendu
