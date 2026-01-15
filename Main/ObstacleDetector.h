@@ -1,4 +1,4 @@
-// ObstacleDetector.h - VERSION BUZZERS ACTIFS PROGRESSIFS
+// ObstacleDetector.h - VERSION BUZZERS ACTIFS PROGRESSIFS + TIMEOUT
 #ifndef OBSTACLE_DETECTOR_H
 #define OBSTACLE_DETECTOR_H
 
@@ -15,7 +15,7 @@ struct ObstacleInfo {
     unsigned long timestamp = 0;
 };
 
-// ===== ✅ NOUVEAU : États du buzzer =====
+// ===== États du buzzer =====
 enum BuzzerState {
     BUZZER_OFF,
     BUZZER_BIP_ON,
@@ -75,7 +75,7 @@ class ObstacleDetector : public IModule {
     
     unsigned long lastObstacleCheckTime;
 
-    // ===== ✅ NOUVEAU : Gestion buzzers actifs =====
+    // ===== Gestion buzzers actifs =====
     BuzzerState buzzer1State;
     BuzzerState buzzer2State;
     unsigned long buzzer1LastChange;
@@ -83,13 +83,17 @@ class ObstacleDetector : public IModule {
     int currentDistanceHaut;
     int currentDistanceBas;
     
+    // ⚠️ NOUVEAU : Timestamps pour timeout
+    unsigned long lastMeasureTimeHaut;
+    unsigned long lastMeasureTimeBas;
+    
     // Fonctions obstacles
     void verifierObstacleHaut();
     void balayerNiveauBas();
     int mesureDistance(int trigPin, int echoPin);
     int mesureDistanceFiltre(int trigPin, int echoPin, int* buffer, int* index);
     
-    // ===== ✅ NOUVEAU : Gestion buzzers non-bloquants =====
+    // ===== Gestion buzzers non-bloquants =====
     void updateBuzzer1();  // Gère BUZZER_1 (HAUT)
     void updateBuzzer2();  // Gère BUZZER_2 (BAS)
     int getIntervalForDistance(int distance);
@@ -106,7 +110,7 @@ class ObstacleDetector : public IModule {
     void vibrerPattern(int count);
     void stopVibration();
     
-    // ===== ✅ MODIFIÉ : Buzzers actifs (digitalWrite) =====
+    // ===== Buzzers actifs (digitalWrite) =====
     void buzzer1On();
     void buzzer1Off();
     void buzzer2On();
