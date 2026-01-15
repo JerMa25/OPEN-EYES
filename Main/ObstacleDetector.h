@@ -1,4 +1,4 @@
-// ObstacleDetector.h - ✅ VERSION CORRIGÉE
+// ObstacleDetector.h - VERSION BUZZERS ACTIFS PROGRESSIFS
 #ifndef OBSTACLE_DETECTOR_H
 #define OBSTACLE_DETECTOR_H
 
@@ -13,6 +13,18 @@ struct ObstacleInfo {
     int angle = 0;
     bool isHigh = false;
     unsigned long timestamp = 0;
+};
+
+// ===== ✅ NOUVEAU : États du buzzer =====
+enum BuzzerState {
+    BUZZER_OFF,
+    BUZZER_BIP_ON,
+    BUZZER_BIP_WAIT,
+    BUZZER_DOUBLE_BIP_FIRST,
+    BUZZER_DOUBLE_BIP_GAP_STATE,
+    BUZZER_DOUBLE_BIP_SECOND,
+    BUZZER_DOUBLE_BIP_WAIT,
+    BUZZER_CONTINUOUS
 };
 
 class ObstacleDetector : public IModule {
@@ -61,15 +73,27 @@ class ObstacleDetector : public IModule {
     unsigned long lastWaterCheckTime;
     unsigned long lastWaterAlertTime;
     
-    // ✅ AJOUTÉ : Throttle pour éviter trop de vérifications
     unsigned long lastObstacleCheckTime;
 
+    // ===== ✅ NOUVEAU : Gestion buzzers actifs =====
+    BuzzerState buzzer1State;
+    BuzzerState buzzer2State;
+    unsigned long buzzer1LastChange;
+    unsigned long buzzer2LastChange;
+    int currentDistanceHaut;
+    int currentDistanceBas;
+    
     // Fonctions obstacles
     void verifierObstacleHaut();
     void balayerNiveauBas();
     int mesureDistance(int trigPin, int echoPin);
     int mesureDistanceFiltre(int trigPin, int echoPin, int* buffer, int* index);
-    void alerterObstacle(int distance, int frequence);
+    
+    // ===== ✅ NOUVEAU : Gestion buzzers non-bloquants =====
+    void updateBuzzer1();  // Gère BUZZER_1 (HAUT)
+    void updateBuzzer2();  // Gère BUZZER_2 (BAS)
+    int getIntervalForDistance(int distance);
+    String getDistanceCategory(int distance);
     
     // Fonctions eau
     void verifierEau();
@@ -82,10 +106,10 @@ class ObstacleDetector : public IModule {
     void vibrerPattern(int count);
     void stopVibration();
     
-    // Fonctions buzzers
-    void buzzer1Tone(int frequence);
+    // ===== ✅ MODIFIÉ : Buzzers actifs (digitalWrite) =====
+    void buzzer1On();
     void buzzer1Off();
-    void buzzer2Tone(int frequence);
+    void buzzer2On();
     void buzzer2Off();
 };
 

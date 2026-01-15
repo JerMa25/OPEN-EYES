@@ -1,4 +1,4 @@
-// ObstacleDetector.cpp - ✅ VERSION DEBUG INTENSIVE
+// ObstacleDetector.cpp - VERSION BUZZERS ACTIFS PROGRESSIFS
 #include "ObstacleDetector.h"
 #include "Logger.h"
 #include "Config.h"
@@ -22,7 +22,13 @@ ObstacleDetector::ObstacleDetector()
       waterRawValue(0),
       lastWaterCheckTime(0),
       lastWaterAlertTime(0),
-      lastObstacleCheckTime(0) {
+      lastObstacleCheckTime(0),
+      buzzer1State(BUZZER_OFF),
+      buzzer2State(BUZZER_OFF),
+      buzzer1LastChange(0),
+      buzzer2LastChange(0),
+      currentDistanceHaut(-1),
+      currentDistanceBas(-1) {
     
     Logger::info("🔧 [CONSTRUCTOR] ObstacleDetector créé");
     
@@ -95,19 +101,28 @@ void ObstacleDetector::init() {
     pinMode(WATER_SENSOR_PIN, INPUT);
     Logger::info("✅ [INIT] Capteur eau : GPIO" + String(WATER_SENSOR_PIN));
 
+    // ===== ✅ NOUVEAU : CONFIGURATION BUZZERS ACTIFS =====
+    Logger::info("🔊 [INIT] Configuration BUZZERS ACTIFS...");
+    pinMode(BUZZER_1_PIN, OUTPUT);
+    pinMode(BUZZER_2_PIN, OUTPUT);
+    digitalWrite(BUZZER_1_PIN, LOW);
+    digitalWrite(BUZZER_2_PIN, LOW);
+    Logger::info("✅ [INIT] BUZZER 1 (HAUT) : GPIO" + String(BUZZER_1_PIN));
+    Logger::info("✅ [INIT] BUZZER 2 (BAS)  : GPIO" + String(BUZZER_2_PIN));
+
     // ===== TEST BUZZERS =====
-    Logger::info("🔊 [INIT] TEST BUZZER 1 (GPIO" + String(BUZZER_1_PIN) + ")...");
-    buzzer1Tone(OBSTACLE_FREQ_DEMARRAGE);
+    Logger::info("🔊 [INIT] TEST BUZZER 1...");
+    digitalWrite(BUZZER_1_PIN, HIGH);
     delay(300);
-    buzzer1Off();
+    digitalWrite(BUZZER_1_PIN, LOW);
     Logger::info("✅ [INIT] BUZZER 1 testé");
     
     delay(200);
     
-    Logger::info("🔊 [INIT] TEST BUZZER 2 (GPIO" + String(BUZZER_2_PIN) + ")...");
-    buzzer2Tone(WATER_FREQ_ALERT);
+    Logger::info("🔊 [INIT] TEST BUZZER 2...");
+    digitalWrite(BUZZER_2_PIN, HIGH);
     delay(300);
-    buzzer2Off();
+    digitalWrite(BUZZER_2_PIN, LOW);
     Logger::info("✅ [INIT] BUZZER 2 testé");
 
     ready = true;
@@ -117,7 +132,7 @@ void ObstacleDetector::init() {
 }
 
 // =======================================================
-// UPDATE (✅ AVEC LOGS DEBUG)
+// UPDATE
 // =======================================================
 void ObstacleDetector::update() {
     if (!ready) {
@@ -129,29 +144,188 @@ void ObstacleDetector::update() {
     
     // Throttle
     if (currentTime - lastObstacleCheckTime < OBSTACLE_CHECK_INTERVAL) {
+        // ✅ NOUVEAU : Même sans mesure, on update les buzzers
+        updateBuzzer1();
+        updateBuzzer2();
         return;
     }
     
     lastObstacleCheckTime = currentTime;
 
-    #ifdef DEBUG_MODE
-    static unsigned long lastDebugLog = 0;
-    if (currentTime - lastDebugLog > 5000) {
-        Logger::info("🔍 [UPDATE] Cycle détection en cours...");
-        Logger::info("🔍 [UPDATE] Angle servo actuel : " + String(angleActuel));
-        Logger::info("🔍 [UPDATE] Direction : " + String(directionDroite ? "DROITE" : "GAUCHE"));
-        lastDebugLog = currentTime;
-    }
-    #endif
-
     // Vérifier obstacles
     verifierObstacleHaut();
     balayerNiveauBas();
 
+    // ✅ NOUVEAU : Update buzzers à chaque cycle
+    updateBuzzer1();
+    updateBuzzer2();
     
     // Vérifier eau
     if (WATER_SENSOR_ENABLED) {
         verifierEau();
+    }
+}
+
+// =======================================================
+// ✅ NOUVEAU : UPDATE BUZZER 1 (HAUT) - BIP SIMPLE
+// =======================================================
+void ObstacleDetector::updateBuzzer1() {
+    unsigned long now = millis();
+    
+    // Si pas d'obstacle proche, éteindre
+    if (currentDistanceHaut == -1 || currentDistanceHaut > BUZZER_DISTANCE_SILENCE) {
+        if (buzzer1State != BUZZER_OFF) {
+            buzzer1Off();
+            buzzer1State = BUZZER_OFF;
+        }
+        return;
+    }
+    
+    // Danger immédiat : son continu
+    if (currentDistanceHaut < BUZZER_DISTANCE_RAPIDE) {
+        if (buzzer1State != BUZZER_CONTINUOUS) {
+            buzzer1On();
+            buzzer1State = BUZZER_CONTINUOUS;
+            Logger::warn("🚨 [BUZZER1] MODE CONTINU (distance=" + String(currentDistanceHaut) + "cm)");
+        }
+        return;
+    }
+    
+    // Calcul de l'intervalle selon la distance
+    int interval = getIntervalForDistance(currentDistanceHaut);
+    
+    // Machine à états pour bip simple
+    switch (buzzer1State) {
+        case BUZZER_OFF:
+            buzzer1On();
+            buzzer1State = BUZZER_BIP_ON;
+            buzzer1LastChange = now;
+            break;
+            
+        case BUZZER_BIP_ON:
+            if (now - buzzer1LastChange >= BUZZER_BIP_DURATION) {
+                buzzer1Off();
+                buzzer1State = BUZZER_BIP_WAIT;
+                buzzer1LastChange = now;
+            }
+            break;
+            
+        case BUZZER_BIP_WAIT:
+            if (now - buzzer1LastChange >= interval) {
+                buzzer1On();
+                buzzer1State = BUZZER_BIP_ON;
+                buzzer1LastChange = now;
+            }
+            break;
+            
+        default:
+            buzzer1State = BUZZER_OFF;
+            break;
+    }
+}
+
+// =======================================================
+// ✅ NOUVEAU : UPDATE BUZZER 2 (BAS) - DOUBLE BIP
+// =======================================================
+void ObstacleDetector::updateBuzzer2() {
+    unsigned long now = millis();
+    
+    // Si pas d'obstacle proche, éteindre
+    if (currentDistanceBas == -1 || currentDistanceBas > BUZZER_DISTANCE_SILENCE) {
+        if (buzzer2State != BUZZER_OFF) {
+            buzzer2Off();
+            buzzer2State = BUZZER_OFF;
+        }
+        return;
+    }
+    
+    // Danger immédiat : son continu
+    if (currentDistanceBas < BUZZER_DISTANCE_RAPIDE) {
+        if (buzzer2State != BUZZER_CONTINUOUS) {
+            buzzer2On();
+            buzzer2State = BUZZER_CONTINUOUS;
+            Logger::warn("🚨 [BUZZER2] MODE CONTINU (distance=" + String(currentDistanceBas) + "cm)");
+        }
+        return;
+    }
+    
+    // Calcul de l'intervalle selon la distance
+    int interval = getIntervalForDistance(currentDistanceBas);
+    
+    // Machine à états pour double bip
+    switch (buzzer2State) {
+        case BUZZER_OFF:
+            buzzer2On();
+            buzzer2State = BUZZER_DOUBLE_BIP_FIRST;
+            buzzer2LastChange = now;
+            break;
+            
+        case BUZZER_DOUBLE_BIP_FIRST:
+            if (now - buzzer2LastChange >= BUZZER_BIP_DURATION) {
+                buzzer2Off();
+                buzzer2State = BUZZER_DOUBLE_BIP_GAP_STATE;
+                buzzer2LastChange = now;
+            }
+            break;
+            
+        case BUZZER_DOUBLE_BIP_GAP_STATE:
+            if (now - buzzer2LastChange >= BUZZER_DOUBLE_BIP_GAP) {
+                buzzer2On();
+                buzzer2State = BUZZER_DOUBLE_BIP_SECOND;
+                buzzer2LastChange = now;
+            }
+            break;
+            
+        case BUZZER_DOUBLE_BIP_SECOND:
+            if (now - buzzer2LastChange >= BUZZER_BIP_DURATION) {
+                buzzer2Off();
+                buzzer2State = BUZZER_DOUBLE_BIP_WAIT;
+                buzzer2LastChange = now;
+            }
+            break;
+            
+        case BUZZER_DOUBLE_BIP_WAIT:
+            if (now - buzzer2LastChange >= interval) {
+                buzzer2On();
+                buzzer2State = BUZZER_DOUBLE_BIP_FIRST;
+                buzzer2LastChange = now;
+            }
+            break;
+            
+        default:
+            buzzer2State = BUZZER_OFF;
+            break;
+    }
+}
+
+// =======================================================
+// ✅ NOUVEAU : CALCUL INTERVALLE SELON DISTANCE
+// =======================================================
+int ObstacleDetector::getIntervalForDistance(int distance) {
+    if (distance >= BUZZER_DISTANCE_LENT) {
+        return BUZZER_INTERVAL_LENT;
+    } else if (distance >= BUZZER_DISTANCE_MOYEN) {
+        return BUZZER_INTERVAL_MOYEN;
+    } else if (distance >= BUZZER_DISTANCE_RAPIDE) {
+        return BUZZER_INTERVAL_RAPIDE;
+    }
+    return 0; // Continu
+}
+
+// =======================================================
+// ✅ NOUVEAU : CATÉGORIE DE DISTANCE (POUR LOGS)
+// =======================================================
+String ObstacleDetector::getDistanceCategory(int distance) {
+    if (distance < BUZZER_DISTANCE_RAPIDE) {
+        return "DANGER";
+    } else if (distance < BUZZER_DISTANCE_MOYEN) {
+        return "RAPIDE";
+    } else if (distance < BUZZER_DISTANCE_LENT) {
+        return "MOYEN";
+    } else if (distance < BUZZER_DISTANCE_SILENCE) {
+        return "LENT";
+    } else {
+        return "SILENCE";
     }
 }
 
@@ -164,6 +338,10 @@ void ObstacleDetector::stop() {
     buzzer2Off();
     stopVibration();
     servoMoteur.detach();
+    buzzer1State = BUZZER_OFF;
+    buzzer2State = BUZZER_OFF;
+    currentDistanceHaut = -1;
+    currentDistanceBas = -1;
     ready = false;
     Logger::info("✅ [STOP] ObstacleDetector arrêté");
 }
@@ -226,52 +404,45 @@ WaterSensorData ObstacleDetector::getWaterSensorData() const {
 // VÉRIFIER OBSTACLE HAUT
 // =======================================================
 void ObstacleDetector::verifierObstacleHaut() {
-    Logger::info("📏 [HAUT] Mesure distance obstacle HAUT...");
-    
     int distance = mesureDistanceFiltre(OBSTACLE_TRIG_HIGH, OBSTACLE_ECHO_HIGH,
                                         bufferHaut, &indexBufferHaut);
 
     if (distance <= 0) {
-        Logger::warn("⚠️ [HAUT] Mesure invalide (distance=" + String(distance) + ")");
+        // Mesure invalide : ne pas changer l'état
         return;
     }
 
-    Logger::info("📏 [HAUT] Distance mesurée : " + String(distance) + " cm");
-
+    // ✅ FILTRE : Variation trop grande
     if (distPrecedenteHaut != -1 &&
         abs(distance - distPrecedenteHaut) > OBSTACLE_SEUIL_VARIATION) {
-        Logger::warn("⚠️ [HAUT] Variation trop grande - rejet (précédent=" + 
-                     String(distPrecedenteHaut) + " nouveau=" + String(distance) + ")");
+        Logger::warn("⚠️ [HAUT] Variation excessive ignorée (Δ=" + 
+                     String(abs(distance - distPrecedenteHaut)) + "cm)");
         return;
     }
 
     distPrecedenteHaut = distance;
     lastDistanceHaut = distance;
+    currentDistanceHaut = distance; // ✅ NOUVEAU : Pour le buzzer
+
+    // ✅ LOGS CLAIRS
+    String category = getDistanceCategory(distance);
+    Logger::info("🔍 [HAUT] Distance=" + String(distance) + "cm [" + category + "]");
 
     if (distance < OBSTACLE_DIST_SECURITE_HAUT) {
-        Logger::warn("🚨 [HAUT] OBSTACLE DÉTECTÉ à " + String(distance) + " cm !");
-
         lastObstacle.distance = distance;
         lastObstacle.angle = 0;
         lastObstacle.isHigh = true;
         lastObstacle.timestamp = millis();
 
+        // Vibration (cooldown)
         unsigned long now = millis();
         if (now - lastAlertTimeHaut > OBSTACLE_ALERT_COOLDOWN) {
-            Logger::warn("🔊 [HAUT] ALERTE SONORE activée");
-            alerterObstacle(distance, OBSTACLE_FREQ_HAUT);
-            
             if (OBSTACLE_VIBRATION_ENABLED) {
                 Logger::info("📳 [HAUT] Vibration activée");
                 vibrerPattern(2);
             }
-            
             lastAlertTimeHaut = now;
-        } else {
-            Logger::info("⏳ [HAUT] Cooldown actif - pas d'alerte");
         }
-    } else {
-        Logger::info("✅ [HAUT] Pas d'obstacle (distance=" + String(distance) + " cm)");
     }
 }
 
@@ -285,58 +456,51 @@ void ObstacleDetector::balayerNiveauBas() {
     if (angleActuel >= OBSTACLE_ANGLE_MAX) {
         angleActuel = OBSTACLE_ANGLE_MAX;
         directionDroite = false;
-        Logger::info("🔄 [SERVO] Inversion direction -> GAUCHE");
     }
     if (angleActuel <= OBSTACLE_ANGLE_MIN) {
         angleActuel = OBSTACLE_ANGLE_MIN;
         directionDroite = true;
-        Logger::info("🔄 [SERVO] Inversion direction -> DROITE");
     }
 
-    Logger::info("🔄 [SERVO] Rotation : " + String(oldAngle) + "° -> " + String(angleActuel) + "°");
     servoMoteur.write(angleActuel);
     delay(OBSTACLE_SERVO_DELAY);
 
-    Logger::info("📏 [BAS] Mesure distance obstacle BAS...");
     int distance = mesureDistanceFiltre(OBSTACLE_TRIG_LOW, OBSTACLE_ECHO_LOW,
                                         bufferBas, &indexBufferBas);
 
     if (distance <= 0) {
-        Logger::warn("⚠️ [BAS] Mesure invalide (distance=" + String(distance) + ")");
         return;
     }
 
-    Logger::info("📏 [BAS] Distance mesurée : " + String(distance) + " cm (angle=" + String(angleActuel) + "°)");
-
+    // ✅ FILTRE
     if (distPrecedenteBas != -1 &&
         abs(distance - distPrecedenteBas) > OBSTACLE_SEUIL_VARIATION) {
-        Logger::warn("⚠️ [BAS] Variation trop grande - rejet");
+        Logger::warn("⚠️ [BAS] Variation excessive ignorée (Δ=" + 
+                     String(abs(distance - distPrecedenteBas)) + "cm)");
         return;
     }
 
     distPrecedenteBas = distance;
     lastDistanceBas = distance;
+    currentDistanceBas = distance; // ✅ NOUVEAU : Pour le buzzer
+
+    // ✅ LOGS CLAIRS
+    String dir = (angleActuel < 60) ? "GAUCHE" :
+                 (angleActuel > 120) ? "DROITE" : "CENTRE";
+    String category = getDistanceCategory(distance);
+    
+    Logger::info("🔍 [BAS] Angle=" + String(angleActuel) + "° Distance=" + 
+                 String(distance) + "cm [" + dir + " / " + category + "]");
 
     if (distance < OBSTACLE_DIST_SECURITE_BAS) {
-        String dir = (angleActuel < 60) ? "GAUCHE" :
-                     (angleActuel > 120) ? "DROITE" : "CENTRE";
-        
-        Logger::warn("🚨 [BAS] OBSTACLE DÉTECTÉ à " + String(distance) + " cm (" + dir + ") !");
-
         lastObstacle.distance = distance;
         lastObstacle.angle = angleActuel;
         lastObstacle.isHigh = false;
         lastObstacle.timestamp = millis();
 
+        // Vibration (cooldown)
         unsigned long now = millis();
         if (now - lastAlertTimeBas > OBSTACLE_ALERT_COOLDOWN) {
-            int freq = (angleActuel < 60)  ? OBSTACLE_FREQ_BAS_GAUCHE :
-                       (angleActuel > 120) ? OBSTACLE_FREQ_BAS_DROITE : 
-                                             OBSTACLE_FREQ_BAS_CENTRE;
-
-            Logger::warn("🔊 [BAS] ALERTE SONORE " + dir + " (freq=" + String(freq) + "Hz)");
-            alerterObstacle(distance, freq);
-            
             if (OBSTACLE_VIBRATION_ENABLED) {
                 Logger::info("📳 [BAS] Vibration " + dir);
                 if (angleActuel < 60) {
@@ -347,13 +511,8 @@ void ObstacleDetector::balayerNiveauBas() {
                     vibrerCourt();
                 }
             }
-            
             lastAlertTimeBas = now;
-        } else {
-            Logger::info("⏳ [BAS] Cooldown actif - pas d'alerte");
         }
-    } else {
-        Logger::info("✅ [BAS] Pas d'obstacle (distance=" + String(distance) + " cm)");
     }
 }
 
@@ -370,11 +529,9 @@ void ObstacleDetector::verifierEau() {
     lastWaterCheckTime = currentTime;
     int niveau = lireNiveauEau();
     
-    Logger::info("💧 [EAU] Niveau : " + String(niveau) + " (seuil=" + String(WATER_THRESHOLD_LOW) + ")");
-    
     if (niveau > WATER_THRESHOLD_LOW) {
         if (currentTime - lastWaterAlertTime > WATER_ALERT_COOLDOWN) {
-            Logger::warn("💧 [EAU] EAU DÉTECTÉE !");
+            Logger::warn("💧 [EAU] EAU DÉTECTÉE (niveau=" + String(niveau) + ") !");
             alerterEau(niveau);
             lastWaterAlertTime = currentTime;
         }
@@ -405,19 +562,22 @@ int ObstacleDetector::lireNiveauEau() {
 }
 
 // =======================================================
-// ALERTER EAU (BUZZER 2)
+// ALERTER EAU (BUZZER 2 - PATTERNS SPÉCIAUX)
 // =======================================================
 void ObstacleDetector::alerterEau(int niveau) {
+    // ✅ Pour l'eau, on utilise des patterns bloquants courts
+    // (car c'est un événement rare et prioritaire)
+    
     if (niveau > WATER_THRESHOLD_HIGH) {
         Logger::warn("🔊 [EAU] Alerte NIVEAU ÉLEVÉ (2 bips)");
         
-        buzzer2Tone(WATER_FREQ_WARNING);
+        digitalWrite(BUZZER_2_PIN, HIGH);
         delay(300);
-        buzzer2Off();
+        digitalWrite(BUZZER_2_PIN, LOW);
         delay(100);
-        buzzer2Tone(WATER_FREQ_WARNING);
+        digitalWrite(BUZZER_2_PIN, HIGH);
         delay(300);
-        buzzer2Off();
+        digitalWrite(BUZZER_2_PIN, LOW);
         
         if (OBSTACLE_VIBRATION_ENABLED) {
             vibrerPattern(4);
@@ -426,9 +586,9 @@ void ObstacleDetector::alerterEau(int niveau) {
     } else if (niveau > WATER_THRESHOLD_LOW) {
         Logger::info("🔊 [EAU] Alerte niveau moyen (1 bip)");
         
-        buzzer2Tone(WATER_FREQ_ALERT);
+        digitalWrite(BUZZER_2_PIN, HIGH);
         delay(300);
-        buzzer2Off();
+        digitalWrite(BUZZER_2_PIN, LOW);
         
         if (OBSTACLE_VIBRATION_ENABLED) {
             vibrerCourt();
@@ -449,14 +609,12 @@ int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
     long duration = pulseIn(echoPin, HIGH, 50000);
     
     if (duration == 0) {
-        Logger::warn("⚠️ [MESURE] Timeout - pas d'écho reçu");
         return -1;
     }
 
     int distance = duration * 0.034 / 2;
 
     if (distance < 2 || distance > 400) {
-        Logger::warn("⚠️ [MESURE] Distance hors limites : " + String(distance) + " cm");
         return -1;
     }
 
@@ -483,63 +641,42 @@ int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
                 std::swap(sorted[j], sorted[j + 1]);
 
     int median = sorted[OBSTACLE_BUFFER_SIZE / 2];
-    Logger::info("📊 [FILTRE] Médian=" + String(median) + " cm");
     
     return median;
 }
 
 // =======================================================
-// ALERTER OBSTACLE (BUZZER 1)
+// ✅ MODIFIÉ : BUZZER 1 - ON (digitalWrite)
 // =======================================================
-void ObstacleDetector::alerterObstacle(int distance, int frequence) {
-    distance = constrain(distance, 2, 150);
-    int duree = map(distance, 2, 150, 300, 50);
-
-    Logger::info("🔊 [BUZZER1] Freq=" + String(frequence) + "Hz Durée=" + String(duree) + "ms");
-    
-    buzzer1Tone(frequence);
-    delay(duree);
-    buzzer1Off();
-    delay(50);
+void ObstacleDetector::buzzer1On() {
+    digitalWrite(BUZZER_1_PIN, HIGH);
 }
 
 // =======================================================
-// BUZZER 1 - ON (ESP32 Core 2.0.x)
-// =======================================================
-void ObstacleDetector::buzzer1Tone(int frequence) {
-    Logger::info("🔊 [BUZZER1] ON - Canal" + String(BUZZER_1_CHANNEL) + " @ " + String(frequence) + "Hz");
-    ledcWriteTone(BUZZER_1_CHANNEL, frequence);
-}
-
-// =======================================================
-// BUZZER 1 - OFF (ESP32 Core 2.0.x)
+// ✅ MODIFIÉ : BUZZER 1 - OFF (digitalWrite)
 // =======================================================
 void ObstacleDetector::buzzer1Off() {
-    Logger::info("🔇 [BUZZER1] OFF - Canal" + String(BUZZER_1_CHANNEL));
-    ledcWriteTone(BUZZER_1_CHANNEL, 0);
+    digitalWrite(BUZZER_1_PIN, LOW);
 }
 
 // =======================================================
-// BUZZER 2 - ON (ESP32 Core 2.0.x)
+// ✅ MODIFIÉ : BUZZER 2 - ON (digitalWrite)
 // =======================================================
-void ObstacleDetector::buzzer2Tone(int frequence) {
-    Logger::info("🔊 [BUZZER2] ON - Canal" + String(BUZZER_2_CHANNEL) + " @ " + String(frequence) + "Hz");
-    ledcWriteTone(BUZZER_2_CHANNEL, frequence);
+void ObstacleDetector::buzzer2On() {
+    digitalWrite(BUZZER_2_PIN, HIGH);
 }
 
 // =======================================================
-// BUZZER 2 - OFF (ESP32 Core 2.0.x)
+// ✅ MODIFIÉ : BUZZER 2 - OFF (digitalWrite)
 // =======================================================
 void ObstacleDetector::buzzer2Off() {
-    Logger::info("🔇 [BUZZER2] OFF - Canal" + String(BUZZER_2_CHANNEL));
-    ledcWriteTone(BUZZER_2_CHANNEL, 0);
+    digitalWrite(BUZZER_2_PIN, LOW);
 }
 
 // =======================================================
 // VIBRATION COURTE
 // =======================================================
 void ObstacleDetector::vibrerCourt() {
-    Logger::info("📳 [VIB] Court");
     digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
     delay(OBSTACLE_VIBRATION_PATTERN_SHORT);
     digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
@@ -549,7 +686,6 @@ void ObstacleDetector::vibrerCourt() {
 // VIBRATION LONGUE
 // =======================================================
 void ObstacleDetector::vibrerLong() {
-    Logger::info("📳 [VIB] Long"); 
     digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
     delay(OBSTACLE_VIBRATION_PATTERN_LONG);
     digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
@@ -559,7 +695,6 @@ void ObstacleDetector::vibrerLong() {
 // PATTERN DE VIBRATIONS
 // =======================================================
 void ObstacleDetector::vibrerPattern(int count) {
-    Logger::info("📳 [VIB] Pattern x" + String(count));
     for (int i = 0; i < count; i++) {
         digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
         delay(OBSTACLE_VIBRATION_PATTERN_SHORT);
@@ -575,6 +710,5 @@ void ObstacleDetector::vibrerPattern(int count) {
 // ARRÊTER VIBRATION
 // =======================================================
 void ObstacleDetector::stopVibration() {
-    Logger::info("📳 [VIB] Stop");
     digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
 }

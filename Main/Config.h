@@ -62,6 +62,20 @@
 #define OBSTACLE_VIBRATOR_PIN 15
 #define WATER_SENSOR_PIN      34
 
+// ===== BUZZERS - PARAMÈTRES PROGRESSIFS =====
+#define BUZZER_DISTANCE_SILENCE  120  // > 120 cm : silence
+#define BUZZER_DISTANCE_LENT     60   // 60-120 cm : bip lent
+#define BUZZER_DISTANCE_MOYEN    30   // 30-60 cm : bip moyen
+#define BUZZER_DISTANCE_RAPIDE   12   // 12-30 cm : bip rapide
+                                      // < 12 cm : son continu
+
+#define BUZZER_INTERVAL_LENT     1000  // 1 seconde entre bips
+#define BUZZER_INTERVAL_MOYEN    500   // 0.5 seconde
+#define BUZZER_INTERVAL_RAPIDE   200   // 0.2 seconde
+
+#define BUZZER_BIP_DURATION      100   // Durée d'un bip (ms)
+#define BUZZER_DOUBLE_BIP_GAP    80    // Pause entre 2 bips du double-bip
+
 // ===== OBSTACLE DETECTOR - PARAMÈTRES DÉTECTION =====
 #define OBSTACLE_DIST_SECURITE_HAUT  150
 #define OBSTACLE_DIST_SECURITE_BAS   100

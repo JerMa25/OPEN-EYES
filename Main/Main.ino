@@ -70,14 +70,15 @@ void gererBoutonONOFF() {
                 }
                 digitalWrite(LED_STATUS, LOW);
                 
-               // ✅ Signal d'arrêt (ESP32 Core 3.x)
-                ledcWriteTone(BUZZER_1_PIN, 1500);
+                
+                // ✅ Signal d'arrêt (buzzers actifs)
+                digitalWrite(BUZZER_1_PIN, HIGH);
                 delay(100);
-                ledcWrite(BUZZER_1_CHANNEL, 0);
+                digitalWrite(BUZZER_1_PIN, LOW);
                 delay(100);
-                ledcWriteTone(BUZZER_1_CHANNEL, 1500);
+                digitalWrite(BUZZER_1_PIN, HIGH);
                 delay(100);
-                ledcWrite(BUZZER_1_PIN, 0);
+                digitalWrite(BUZZER_1_PIN, LOW);
             }
         }
     }
@@ -191,18 +192,15 @@ void setup() {
     }
     Logger::info("✅ [SETUP] Test LED terminé");
 
-    // ===== CONFIG BUZZERS PWM (ESP32 Core 3.x) =====
-    Logger::info("🔊 [SETUP] Configuration PWM Buzzers (ESP32 Core 3.x)...");
+    // ===== CONFIG BUZZERS ACTIFS (simple GPIO) =====
+    Logger::info("🔊 [SETUP] Configuration buzzers actifs...");
     Logger::info("🔊 [SETUP] BUZZER 1 : GPIO" + String(BUZZER_1_PIN));
-    
-    // ✅ API ESP32 Core 3.x
-    // BUZZER 1
-    ledcAttach(BUZZER_1_PIN, 2000, BUZZER_1_RES);
-    Logger::info("✅ [SETUP] BUZZER 1 configuré");
-    
     Logger::info("🔊 [SETUP] BUZZER 2 : GPIO" + String(BUZZER_2_PIN));
-    // BUZZER 2
-    ledcAttach(BUZZER_2_PIN, 2000, BUZZER_2_RES);
+    pinMode(BUZZER_1_PIN, OUTPUT);
+    pinMode(BUZZER_2_PIN, OUTPUT);
+    digitalWrite(BUZZER_1_PIN, LOW);
+    digitalWrite(BUZZER_2_PIN, LOW);
+    Logger::info("✅ [SETUP] Buzzers configurés");
     Logger::info("✅ [SETUP] BUZZER 2 configuré");
 
     // ===== INIT MODULES =====
@@ -223,16 +221,16 @@ void setup() {
 
     // ===== TEST DÉMARRAGE BUZZERS =====
     Logger::info("");
+    Logger::info("");
     Logger::info("🔊 [SETUP] Test bips démarrage...");
     for (int i = 0; i < 3; i++) {
         Logger::info("🔊 [TEST] Bip " + String(i+1) + "/3");
-        ledcWriteTone(BUZZER_1_CHANNEL, OBSTACLE_FREQ_DEMARRAGE);
+        digitalWrite(BUZZER_1_PIN, HIGH);
         delay(150);
-        ledcWrite(BUZZER_1_PIN, 0);
+        digitalWrite(BUZZER_1_PIN, LOW);
         delay(150);
     }
     Logger::info("✅ [SETUP] Test bips terminé");
-
     // ===== RÉCAP FINAL =====
     Logger::info("");
     Logger::info("╔════════════════════════════════════════╗");
