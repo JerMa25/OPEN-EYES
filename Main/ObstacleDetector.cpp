@@ -407,16 +407,23 @@ void ObstacleDetector::verifierObstacleHaut() {
     int distance = mesureDistanceFiltre(OBSTACLE_TRIG_HIGH, OBSTACLE_ECHO_HIGH,
                                         bufferHaut, &indexBufferHaut);
 
-    if (distance <= 0) {
+    if (distance <= 0 || distance >= 900) {
         // Mesure invalide : ne pas changer l'état
+        currentDistanceHaut = -1; // ✅ NOUVEAU : Pour le buzzer
         return;
     }
 
     // ✅ FILTRE : Variation trop grande
     if (distPrecedenteHaut != -1 &&
-        abs(distance - distPrecedenteHaut) > OBSTACLE_SEUIL_VARIATION) {
+        abs(distance - distPrecedenteHaut) > 150) {
         Logger::warn("⚠️ [HAUT] Variation excessive ignorée (Δ=" + 
                      String(abs(distance - distPrecedenteHaut)) + "cm)");
+        return;
+    }
+
+    // ✅ AJOUTER : Rejeter les distances > 300cm (probablement du bruit)
+    if (distance > 300) {
+        Logger::warn("⚠️ [HAUT] Distance trop grande ignorée (" + String(distance) + "cm)");
         return;
     }
 
@@ -468,15 +475,22 @@ void ObstacleDetector::balayerNiveauBas() {
     int distance = mesureDistanceFiltre(OBSTACLE_TRIG_LOW, OBSTACLE_ECHO_LOW,
                                         bufferBas, &indexBufferBas);
 
-    if (distance <= 0) {
+    if (distance <= 0 || distance >= 900) {
+        currentDistanceBas = -1; // ✅ NOUVEAU : Pour le buzzer
         return;
     }
 
     // ✅ FILTRE
     if (distPrecedenteBas != -1 &&
-        abs(distance - distPrecedenteBas) > OBSTACLE_SEUIL_VARIATION) {
+        abs(distance - distPrecedenteBas) > 150) {
         Logger::warn("⚠️ [BAS] Variation excessive ignorée (Δ=" + 
                      String(abs(distance - distPrecedenteBas)) + "cm)");
+        return;
+    }
+
+    // ✅ AJOUTER : Rejeter distances > 300cm
+    if (distance > 300) {
+        Logger::warn("⚠️ [BAS] Distance trop grande ignorée (" + String(distance) + "cm)");
         return;
     }
 
@@ -626,21 +640,52 @@ int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
 // =======================================================
 int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
                                            int* buffer, int* index) {
-    int d = mesureDistance(trigPin, echoPin);
-    if (d < 0) return -1;
-
-    buffer[*index] = d;
+    // ✅ Prendre plusieurs mesures et rejeter les outliers
+    int readings[3];
+    for (int i = 0; i < 3; i++) {
+        readings[i] = mesureDistance(trigPin, echoPin);
+        delayMicroseconds(100); // ✅ Pause entre mesures
+    }
+    
+    // ✅ Rejeter les mesures invalides
+    int validCount = 0;
+    int sum = 0;
+    for (int i = 0; i < 3; i++) {
+        if (readings[i] > 0 && readings[i] < 400) {
+            sum += readings[i];
+            validCount++;
+        }
+    }
+    
+    // ✅ Si toutes les mesures sont invalides, retourner valeur max
+    if (validCount == 0) {
+        Logger::warn("⚠️ Aucune mesure valide - retour 999cm");
+        return 999;
+    }
+    
+    // ✅ Moyenne des mesures valides
+    int avgDistance = sum / validCount;
+    
+    // ✅ Ajouter au buffer
+    buffer[*index] = avgDistance;
     *index = (*index + 1) % OBSTACLE_BUFFER_SIZE;
-
+    
+    // ✅ Calculer la médiane du buffer
     int sorted[OBSTACLE_BUFFER_SIZE];
     memcpy(sorted, buffer, sizeof(sorted));
-
+    
     for (int i = 0; i < OBSTACLE_BUFFER_SIZE - 1; i++)
         for (int j = 0; j < OBSTACLE_BUFFER_SIZE - i - 1; j++)
             if (sorted[j] > sorted[j + 1])
                 std::swap(sorted[j], sorted[j + 1]);
-
+    
     int median = sorted[OBSTACLE_BUFFER_SIZE / 2];
+    
+    // ✅ Si médiane proche de 999, c'est probablement du bruit
+    if (median > 900) {
+        Logger::warn("⚠️ Distance suspecte ignorée (" + String(median) + "cm)");
+        return -1; // Invalider
+    }
     
     return median;
 }
