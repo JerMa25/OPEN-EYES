@@ -50,10 +50,10 @@
 // ============================================================
 // ===== OBSTACLE DETECTOR - PINS =====
 // ============================================================
-#define OBSTACLE_TRIG_HIGH    5
-#define OBSTACLE_ECHO_HIGH    18
-#define OBSTACLE_TRIG_LOW     19
-#define OBSTACLE_ECHO_LOW     21
+#define OBSTACLE_TRIG_HIGH    19
+#define OBSTACLE_ECHO_HIGH    21
+#define OBSTACLE_TRIG_LOW     5
+#define OBSTACLE_ECHO_LOW     18
 #define OBSTACLE_SERVO_PIN    23
 
 // ===== BUZZERS =====
