@@ -97,11 +97,7 @@ void ObstacleDetector::init() {
     servoMoteur.write(90);
     Logger::info("✅ [INIT] Test SERVO terminé - retour 90°");
 
-    // ===== CONFIGURATION VIBRATION =====
-    Logger::info("📳 [INIT] Configuration moteur vibrant...");
-    pinMode(OBSTACLE_VIBRATOR_PIN, OUTPUT);
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
-    Logger::info("✅ [INIT] Moteur vibrant : GPIO" + String(OBSTACLE_VIBRATOR_PIN));
+
 
     // ===== CONFIGURATION CAPTEUR EAU =====
     Logger::info("💧 [INIT] Configuration capteur eau...");
@@ -407,7 +403,6 @@ void ObstacleDetector::stop() {
     Logger::info("🛑 [STOP] Arrêt ObstacleDetector...");
     buzzer1Off();
     buzzer2Off();
-    stopVibration();
     
     // ✅ CORRECTION : Detach seulement au stop
     if (servoMoteur.attached()) {
@@ -655,9 +650,7 @@ void ObstacleDetector::alerterEau(int niveau) {
         waterAlertState = WATER_ALERT_BIP1_ON;
         waterAlertLastChange = millis();
         
-        if (OBSTACLE_VIBRATION_ENABLED) {
-            vibrerPattern(4);
-        }
+
         
     } else if (niveau > WATER_THRESHOLD_LOW) {
         Logger::info("🔊 [EAU] Alerte niveau moyen (1 bip)");
@@ -667,9 +660,7 @@ void ObstacleDetector::alerterEau(int niveau) {
         waterAlertState = WATER_ALERT_BIP1_ON;
         waterAlertLastChange = millis();
         
-        if (OBSTACLE_VIBRATION_ENABLED) {
-            vibrerCourt();
-        }
+
     }
 }
 
@@ -798,44 +789,4 @@ void ObstacleDetector::buzzer2On() {
 // =======================================================
 void ObstacleDetector::buzzer2Off() {
     digitalWrite(BUZZER_2_PIN, LOW);
-}
-
-// =======================================================
-// VIBRATION COURTE
-// =======================================================
-void ObstacleDetector::vibrerCourt() {
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
-    delay(OBSTACLE_VIBRATION_PATTERN_SHORT);  // ⚠️ Court, acceptable
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
-}
-
-// =======================================================
-// VIBRATION LONGUE
-// =======================================================
-void ObstacleDetector::vibrerLong() {
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
-    delay(OBSTACLE_VIBRATION_PATTERN_LONG);  // ⚠️ Court, acceptable
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
-}
-
-// =======================================================
-// PATTERN DE VIBRATIONS
-// =======================================================
-void ObstacleDetector::vibrerPattern(int count) {
-    for (int i = 0; i < count; i++) {
-        digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
-        delay(OBSTACLE_VIBRATION_PATTERN_SHORT);  // ⚠️ Court, acceptable
-        digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
-        
-        if (i < count - 1) {
-            delay(OBSTACLE_VIBRATION_PAUSE);  // ⚠️ Court, acceptable
-        }
-    }
-}
-
-// =======================================================
-// ARRÊTER VIBRATION
-// =======================================================
-void ObstacleDetector::stopVibration() {
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
 }

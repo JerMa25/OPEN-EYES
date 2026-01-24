@@ -120,11 +120,7 @@ class ObstacleDetector : public IModule {
     int lireNiveauEau();
     void alerterEau(int niveau);
     
-    // Fonctions vibration
-    void vibrerCourt();
-    void vibrerLong();
-    void vibrerPattern(int count);
-    void stopVibration();
+
     
     // ===== Buzzers actifs (digitalWrite) =====
     void buzzer1On();
