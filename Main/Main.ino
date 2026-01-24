@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
+#include <esp_task_wdt.h>  // ✅ NOUVEAU : Watchdog timer
 
 #include "Config.h"
 #include "Logger.h"
@@ -32,11 +33,13 @@ bool appuiEnCours = false;
 
 unsigned long lastStatusLog = 0;
 unsigned long lastGPSCheck = 0;
-const unsigned long STATUS_INTERVAL = 10000;
-const unsigned long GPS_CHECK_INTERVAL = 5000;
-
 unsigned long lastObstacleBLESend = 0;
 unsigned long lastWaterBLESend = 0;
+unsigned long lastDistanceLog = 0;  // ✅ NOUVEAU : Pour throttler les logs de distance
+
+const unsigned long STATUS_INTERVAL = 10000;
+const unsigned long GPS_CHECK_INTERVAL = 5000;
+const unsigned long DISTANCE_LOG_INTERVAL = 2000;  // ✅ NOUVEAU : Logs distance toutes les 2s
 
 // =======================================================
 // GESTION BOUTON ON/OFF
@@ -57,7 +60,7 @@ void gererBoutonONOFF() {
                         m->init();
                     }
                 }
-                for (int i = 0; i < 3; i++) {
+                for (int i = 0; i < 2; i++) {  // ✅ CORRECTION : 2 au lieu de 3
                     digitalWrite(LED_STATUS, HIGH);
                     delay(200);
                     digitalWrite(LED_STATUS, LOW);
@@ -70,8 +73,7 @@ void gererBoutonONOFF() {
                 }
                 digitalWrite(LED_STATUS, LOW);
                 
-                
-                // ✅ Signal d'arrêt (buzzers actifs)
+                // Signal d'arrêt (buzzers actifs)
                 digitalWrite(BUZZER_1_PIN, HIGH);
                 delay(100);
                 digitalWrite(BUZZER_1_PIN, LOW);
@@ -141,11 +143,18 @@ void detecterPatternBouton() {
 // =======================================================
 void setup() {
     Serial.begin(DEBUG_BAUDRATE);
-    delay(2000);
+    delay(500);  // ✅ CORRECTION : 500ms au lieu de 2000ms
     
     Logger::info("╔════════════════════════════════════════╗");
     Logger::info("║   CANNE INTELLIGENTE - DEBUG MODE     ║");
     Logger::info("╚════════════════════════════════════════╝");
+    Logger::info("");
+
+    // ===== CONFIGURATION WATCHDOG =====
+    Logger::info("🛡️ [SETUP] Configuration Watchdog Timer...");
+    esp_task_wdt_init(8, true);  // 8 secondes timeout, panic on timeout
+    esp_task_wdt_add(NULL);      // Ajouter la tâche courante
+    Logger::info("✅ [SETUP] Watchdog configuré (8s)");
     Logger::info("");
 
     // ===== TEST PINS =====
@@ -180,9 +189,9 @@ void setup() {
     digitalWrite(LED_STATUS, LOW);
     Logger::info("✅ [SETUP] LED Status : GPIO" + String(LED_STATUS));
     
-    // Test LED
+    // Test LED - ✅ CORRECTION : 2 au lieu de 3
     Logger::info("🧪 [SETUP] Test LED Status...");
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 2; i++) {
         digitalWrite(LED_STATUS, HIGH);
         Logger::info("💡 [TEST] LED ON");
         delay(200);
@@ -201,7 +210,6 @@ void setup() {
     digitalWrite(BUZZER_1_PIN, LOW);
     digitalWrite(BUZZER_2_PIN, LOW);
     Logger::info("✅ [SETUP] Buzzers configurés");
-    Logger::info("✅ [SETUP] BUZZER 2 configuré");
 
     // ===== INIT MODULES =====
     Logger::info("");
@@ -211,8 +219,22 @@ void setup() {
     for (int i = 0; i < 4; i++) {
         Logger::info("");
         Logger::info("🔄 [SETUP] Init module " + String(i+1) + "/4...");
+        
+        // ✅ NOUVEAU : Timeout et gestion d'erreur
+        unsigned long startTime = millis();
         modules[i]->init();
-        Logger::info("✅ [SETUP] Module " + String(i+1) + " prêt");
+        unsigned long initDuration = millis() - startTime;
+        
+        if (initDuration > 5000) {
+            Logger::warn("⚠️ [SETUP] Module " + String(i+1) + " timeout (" + String(initDuration) + "ms)");
+        }
+        
+        // ✅ NOUVEAU : Vérification si le module est prêt
+        if (modules[i]->isReady()) {
+            Logger::info("✅ [SETUP] Module " + String(i+1) + " prêt");
+        } else {
+            Logger::error("❌ [SETUP] Module " + String(i+1) + " ÉCHEC !");
+        }
     }
     
     Logger::info("");
@@ -221,16 +243,17 @@ void setup() {
 
     // ===== TEST DÉMARRAGE BUZZERS =====
     Logger::info("");
-    Logger::info("");
     Logger::info("🔊 [SETUP] Test bips démarrage...");
-    for (int i = 0; i < 3; i++) {
-        Logger::info("🔊 [TEST] Bip " + String(i+1) + "/3");
+    // ✅ CORRECTION : 2 au lieu de 3
+    for (int i = 0; i < 2; i++) {
+        Logger::info("🔊 [TEST] Bip " + String(i+1) + "/2");
         digitalWrite(BUZZER_1_PIN, HIGH);
         delay(150);
         digitalWrite(BUZZER_1_PIN, LOW);
         delay(150);
     }
     Logger::info("✅ [SETUP] Test bips terminé");
+    
     // ===== RÉCAP FINAL =====
     Logger::info("");
     Logger::info("╔════════════════════════════════════════╗");
@@ -262,11 +285,23 @@ void setup() {
     Logger::info("🟢 Démarrage en cours...");
     Logger::info("════════════════════════════════════════");
     Logger::info("");
+    
+    // ✅ NOUVEAU : Initialiser les timestamps pour éviter spam au démarrage
+    unsigned long now = millis();
+    lastStatusLog = now;
+    lastGPSCheck = now;
+    lastObstacleBLESend = now;
+    lastWaterBLESend = now;
+    lastDistanceLog = now;
 }
+
 // =======================================================
 // LOOP
 // =======================================================
 void loop() {
+    // ✅ NOUVEAU : Reset watchdog à chaque cycle
+    esp_task_wdt_reset();
+    
     static unsigned long loopCount = 0;
     loopCount++;
     
@@ -283,16 +318,18 @@ void loop() {
         return;
     }
 
-    // Update modules
+    // ✅ CORRECTION : Vérifier isReady() avant update
     for (IModule* m : modules) {
-        m->update();
+        if (m->isReady()) {
+            m->update();
+        }
     }
 
     detecterPatternBouton();
 
     unsigned long currentTime = millis();
 
-    // Status périodique
+    // Status périodique (toutes les 10s)
     if (currentTime - lastStatusLog >= STATUS_INTERVAL) {
         Logger::info("════════════════════════════════════════");
         Logger::info("📊 STATUT SYSTÈME (uptime=" + String(currentTime/1000) + "s)");
@@ -315,7 +352,25 @@ void loop() {
         lastStatusLog = currentTime;
     }
 
-    // GPS Check
+    // ✅ NOUVEAU : Logs de distance throttlés (toutes les 2s au lieu de 10 fois/sec)
+    if (currentTime - lastDistanceLog >= DISTANCE_LOG_INTERVAL) {
+        ObstacleData obstData = detector.getObstacleData();
+        
+        if (obstData.upper > 0 && obstData.upper < 300) {
+            Logger::info("🔍 [HAUT] Distance=" + String(obstData.upper) + "cm");
+        }
+        
+        if (obstData.lower > 0 && obstData.lower < 300) {
+            String dir = (obstData.servoAngle < 60) ? "GAUCHE" :
+                         (obstData.servoAngle > 120) ? "DROITE" : "CENTRE";
+            Logger::info("🔍 [BAS] Angle=" + String(obstData.servoAngle) + "° Distance=" + 
+                         String(obstData.lower) + "cm [" + dir + "]");
+        }
+        
+        lastDistanceLog = currentTime;
+    }
+
+    // GPS Check (toutes les 5s)
     if (currentTime - lastGPSCheck >= GPS_CHECK_INTERVAL) {
         GPSData gpsData = gps.getGPSData();
         
@@ -332,7 +387,7 @@ void loop() {
         lastGPSCheck = currentTime;
     }
 
-    // BLE Obstacles
+    // BLE Obstacles (toutes les 500ms)
     if (currentTime - lastObstacleBLESend >= OBSTACLE_BLE_UPDATE_INTERVAL) {
         if (bluetooth.isClientConnected()) {
             ObstacleData obstacleData = detector.getObstacleData();
@@ -344,7 +399,7 @@ void loop() {
         lastObstacleBLESend = currentTime;
     }
 
-    // BLE Eau
+    // BLE Eau (toutes les 1000ms)
     if (currentTime - lastWaterBLESend >= WATER_BLE_UPDATE_INTERVAL) {
         if (bluetooth.isClientConnected()) {
             WaterSensorData waterData = detector.getWaterSensorData();
@@ -356,7 +411,7 @@ void loop() {
         lastWaterBLESend = currentTime;
     }
 
-    // LED Blink
+    // LED Blink (toutes les 1000ms)
     static unsigned long lastBlink = 0;
     static bool ledState = false;
     
@@ -369,5 +424,5 @@ void loop() {
         lastBlink = currentTime;
     }
     
-    delay(50);
+    // ✅ CORRECTION : SUPPRESSION du delay(50) - le throttling est géré par les modules
 }
