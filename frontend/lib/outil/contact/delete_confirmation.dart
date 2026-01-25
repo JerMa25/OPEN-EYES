@@ -1,6 +1,5 @@
-// lib/widgets/delete_confirmation_dialog.dart
 import 'package:flutter/material.dart';
-import '../model/contact.dart';
+import '../../model/contact.dart';
 
 class DeleteConfirmationDialog extends StatelessWidget {
   final Contact contact;
@@ -49,7 +48,9 @@ class DeleteConfirmationDialog extends StatelessWidget {
             
             // Message
             Text(
-              'Êtes-vous sûr de vouloir supprimer ${contact.name} ?',
+              'Êtes-vous sûr de vouloir supprimer ${contact.nom} ?',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
@@ -59,7 +60,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Cette action est irréversible.',
+              'Cette action supprimera le contact du backend et de la canne.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -82,7 +83,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
                       side: BorderSide(color: Colors.grey[300]!),
                     ),
                     child: Text(
-                      'Non',
+                      'Annuler',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -104,7 +105,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
                       elevation: 0,
                     ),
                     child: const Text(
-                      'Oui',
+                      'Supprimer',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

@@ -52,6 +52,7 @@ class _MainScreenState extends State<MainScreen> {
             _selectedIndex = index;
           });
         },
+        backgroundColor: Colors.white,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         items: const [

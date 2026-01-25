@@ -1,10 +1,11 @@
-// lib/page/contact_page.dart
 import 'package:flutter/material.dart';
 import '../model/contact.dart';
-import '../outil/contact_card.dart';
-import '../outil/add_contact.dart';
-import '../outil/option_contact_dialog.dart';
-import '../outil/delete_confirmation.dart';
+import '../services/contact_service.dart';
+import '../outil/contact/contact_card.dart';
+import '../outil/contact/add_contact.dart';
+import '../outil/contact/option_contact_dialog.dart';
+import '../outil/contact/delete_confirmation.dart';
+import '../config.dart';
 
 class ContactsPage extends StatefulWidget {
   const ContactsPage({super.key});
@@ -14,142 +15,157 @@ class ContactsPage extends StatefulWidget {
 }
 
 class _ContactsPageState extends State<ContactsPage> {
-  List<Contact> favorites = [];
-  List<Contact> allContacts = [];
+  final _contactService = ContactService();
+  late Future<List<Contact>> _contactsFuture;
 
   @override
   void initState() {
     super.initState();
-    // Charger les données initiales
-    favorites = ContactData.getAccompagnateurs();
-    allContacts = ContactData.getAllContacts();
+    _loadContacts();
+  }
+
+  void _loadContacts() {
+    print('🔄 ContactsPage: Loading contacts...');
+    setState(() {
+      _contactsFuture = _contactService.fetchAllContacts();
+    });
   }
 
   void _showAddContactDialog() async {
-    final result = await showDialog<Map<String, String>>(
+    // ✅ CORRIGÉ : Le dialogue retourne un Contact, pas un Map
+    final newContact = await showDialog<Contact>(
       context: context,
-      builder: (context) => const AddContactDialog(),
+      builder: (context) => const AddContactDialog(canneId: AppConfig.cannePhoneNumber,),
     );
 
-    if (result != null) {
-      setState(() {
-        allContacts.add(Contact(
-          name: result['name']!,
-          role: result['role']!,
-          phone: result['phone']!,
-          avatarText: _getInitials(result['name']!),
-          backgroundColor: Colors.blue[100],
-          textColor: Colors.blue[700],
-        ));
-      });
+    if (newContact != null && mounted) {
+      try {
+        // ✅ CORRIGÉ : Utilisation de registerContact
+        await _contactService.registerContact(contact: newContact);
+        
+        if (!mounted) return;
 
-      if (mounted) {
+        _loadContacts();
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${result['name']} a été ajouté aux contacts'),
+            content: Text('${newContact.nom} ${newContact.prenom} ajouté avec succès'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     }
   }
 
-  void _showContactOptions(Contact contact, bool isFavorite) async {
+  void _showContactOptions(Contact contact) async {
     final action = await showDialog<String>(
       context: context,
       builder: (context) => const ContactOptionsDialog(),
     );
 
     if (action == 'delete') {
-      _showDeleteConfirmation(contact, isFavorite);
+      _showDeleteConfirmation(contact);
     } else if (action == 'update') {
-      _showUpdateContactDialog(contact, isFavorite);
+      _showUpdateContactDialog(contact);
     }
   }
 
-  void _showDeleteConfirmation(Contact contact, bool isFavorite) async {
+  void _showDeleteConfirmation(Contact contact) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => DeleteConfirmationDialog(contact: contact),
     );
 
-    if (confirmed == true) {
-      setState(() {
-        if (isFavorite) {
-          favorites.removeWhere((c) => c.name == contact.name);
-        } else {
-          allContacts.removeWhere((c) => c.name == contact.name);
+    if (confirmed == true && mounted) {
+      try {
+        // ✅ CORRIGÉ : Vérification que l'ID existe
+        if (contact.id == null) {
+          throw Exception('Contact sans ID');
         }
-      });
 
-      if (mounted) {
+        // ✅ CORRIGÉ : Utilisation de la bonne méthode avec les bons paramètres
+        await _contactService.deleteContact(
+          contactId: contact.id!,
+          telephone: contact.telephone,
+        );
+        
+        if (!mounted) return;
+
+        _loadContacts();
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${contact.name} a été supprimé'),
+            content: Text('${contact.nom} ${contact.prenom} supprimé'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
           ),
         );
-      }
-    }
-  }
-
-  void _showUpdateContactDialog(Contact contact, bool isFavorite) async {
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (context) => AddContactDialog(contact: contact),
-    );
-
-    if (result != null) {
-      final updatedContact = Contact(
-        name: result['name']!,
-        role: result['role']!,
-        phone: result['phone']!,
-        avatarText: contact.useEmoji ? contact.avatarText : _getInitials(result['name']!),
-        isAccompagnateur: contact.isAccompagnateur,
-        useEmoji: contact.useEmoji,
-        backgroundColor: contact.backgroundColor,
-        textColor: contact.textColor,
-      );
-
-      setState(() {
-        if (isFavorite) {
-          final index = favorites.indexWhere((c) => c.name == contact.name);
-          if (index != -1) favorites[index] = updatedContact;
-        } else {
-          final index = allContacts.indexWhere((c) => c.name == contact.name);
-          if (index != -1) allContacts[index] = updatedContact;
-        }
-      });
-
-      if (mounted) {
+      } catch (e) {
+        if (!mounted) return;
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${result['name']} a été mis à jour'),
-            backgroundColor: Colors.blue,
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
           ),
         );
       }
     }
   }
 
-  String _getInitials(String name) {
-    final parts = name.split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  void _showUpdateContactDialog(Contact contact) async {
+    // ✅ CORRIGÉ : Le dialogue retourne un Contact
+    final updatedContact = await showDialog<Contact>(
+      context: context,
+      builder: (context) => AddContactDialog(
+        contact: contact,
+        canneId: AppConfig.cannePhoneNumber,
+      ),
+    );
+
+    if (updatedContact != null && mounted) {
+      try {
+        // ✅ CORRIGÉ : Utilisation de updateContactByTelephone
+        await _contactService.updateContactByTelephone(
+          ancienTelephone: contact.telephone,
+          updatedContact: updatedContact,
+        );
+        
+        if (!mounted) return;
+
+        _loadContacts();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${updatedContact.nom} ${updatedContact.prenom} mis à jour'),
+            backgroundColor: Colors.blue,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
-    return name.substring(0, 1).toUpperCase();
   }
 
   @override
@@ -181,99 +197,105 @@ class _ContactsPageState extends State<ContactsPage> {
               ),
             ),
 
+            // Liste des contacts
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  // Section Favoris
-                  if (favorites.isNotEmpty) ...[
-                    Text(
-                      'FAVORIS',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[500],
-                        letterSpacing: 1,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    ...favorites.map((contact) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: ContactCard(
-                        contact: contact,
-                        onMenuPressed: () => _showContactOptions(contact, true),
-                      ),
-                    )),
-                    
-                    const SizedBox(height: 24),
-                  ],
+              child: FutureBuilder<List<Contact>>(
+                future: _contactsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                  // Section Tous les contacts
-                  Text(
-                    'TOUS LES CONTACTS',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[500],
-                      letterSpacing: 1,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  if (allContacts.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40.0),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.contacts_outlined,
-                              size: 64,
-                              color: Colors.grey[300],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Aucun contact',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Ajoutez votre premier contact',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[400],
-                              ),
-                            ),
-                          ],
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text('Erreur: ${snapshot.error}'),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadContacts,
+                            child: const Text('Réessayer'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.contacts_outlined, size: 64, color: Colors.grey[300]),
+                          const SizedBox(height: 16),
+                          Text('Aucun contact', style: TextStyle(fontSize: 16, color: Colors.grey[500])),
+                          const SizedBox(height: 8),
+                          Text('Ajoutez votre premier contact', style: TextStyle(fontSize: 14, color: Colors.grey[400])),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // ✅ CORRIGÉ : Groupement par type de contact
+                  final urgences = snapshot.data!
+                      .where((c) => c.typeContact.toUpperCase() == 'URGENCE')
+                      .toList();
+                  final autres = snapshot.data!
+                      .where((c) => c.typeContact.toUpperCase() != 'URGENCE')
+                      .toList();
+
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    children: [
+                      // Contacts d'urgence
+                      if (urgences.isNotEmpty) ...[
+                        Text(
+                          'CONTACTS D\'URGENCE',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                            letterSpacing: 1,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    )
-                  else
-                    ...allContacts.map((contact) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: ContactCard(
-                        contact: contact,
-                        onMenuPressed: () => _showContactOptions(contact, false),
-                      ),
-                    )),
-                  
-                  const SizedBox(height: 24),
-                  if (allContacts.isNotEmpty)
-                    Center(
-                      child: Text(
-                        'Vous avez atteint la fin de la liste.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[400],
+                        const SizedBox(height: 16),
+                        ...urgences.map((contact) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: ContactCard(
+                                contact: contact,
+                                onMenuPressed: () => _showContactOptions(contact),
+                              ),
+                            )),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Autres contacts
+                      if (autres.isNotEmpty) ...[
+                        Text(
+                          'TOUS LES CONTACTS',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                            letterSpacing: 1,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ),
-                  const SizedBox(height: 40),
-                ],
+                        const SizedBox(height: 16),
+                        ...autres.map((contact) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: ContactCard(
+                                contact: contact,
+                                onMenuPressed: () => _showContactOptions(contact),
+                              ),
+                            )),
+                      ],
+                      const SizedBox(height: 40),
+                    ],
+                  );
+                },
               ),
             ),
           ],

@@ -1,4 +1,4 @@
-// lib/widgets/contact_options_dialog.dart
+
 import 'package:flutter/material.dart';
 
 class ContactOptionsDialog extends StatelessWidget {
@@ -32,11 +32,10 @@ class ContactOptionsDialog extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              onTap: () {
-                Navigator.pop(context, 'update');
-              },
+              onTap: () => Navigator.pop(context, 'update'),
             ),
             const Divider(height: 1),
+            
             // Option Supprimer
             ListTile(
               leading: Container(
@@ -55,9 +54,7 @@ class ContactOptionsDialog extends StatelessWidget {
                   color: Colors.red,
                 ),
               ),
-              onTap: () {
-                Navigator.pop(context, 'delete');
-              },
+              onTap: () => Navigator.pop(context, 'delete'),
             ),
           ],
         ),

@@ -34,6 +34,9 @@ dependencies:
     
   flutter_blue_plus: ^1.31.0
   http: ^1.2.0
+  flutter_sms: ^2.3.3           # ✅ Package SMS
+  permission_handler: ^11.3.1 
+
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -42,7 +45,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+  flutter_lints: ^3.0.0
 
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -50,7 +53,6 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
