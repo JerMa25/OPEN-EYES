@@ -1,4 +1,4 @@
-// ObstacleDetector.h - VERSION BUZZERS ACTIFS PROGRESSIFS + TIMEOUT
+// ObstacleDetector.h - VERSION OPTIMISÉE SANS BLOCAGES
 #ifndef OBSTACLE_DETECTOR_H
 #define OBSTACLE_DETECTOR_H
 
@@ -25,6 +25,14 @@ enum BuzzerState {
     BUZZER_DOUBLE_BIP_SECOND,
     BUZZER_DOUBLE_BIP_WAIT,
     BUZZER_CONTINUOUS
+};
+
+// ✅ NOUVEAU : États pour alerte eau non-bloquante
+enum WaterAlertState {
+    WATER_ALERT_OFF,
+    WATER_ALERT_BIP1_ON,
+    WATER_ALERT_BIP1_OFF,
+    WATER_ALERT_BIP2_ON
 };
 
 class ObstacleDetector : public IModule {
@@ -83,9 +91,16 @@ class ObstacleDetector : public IModule {
     int currentDistanceHaut;
     int currentDistanceBas;
     
-    // ⚠️ NOUVEAU : Timestamps pour timeout
+    // ✅ CORRECTION : Timestamps pour timeout (augmenté à 1500ms)
     unsigned long lastMeasureTimeHaut;
     unsigned long lastMeasureTimeBas;
+    
+    // ✅ NOUVEAU : Timer pour servo non-bloquant
+    unsigned long lastServoMoveTime;
+    
+    // ✅ NOUVEAU : Machine à états pour alerte eau
+    WaterAlertState waterAlertState;
+    unsigned long waterAlertLastChange;
     
     // Fonctions obstacles
     void verifierObstacleHaut();
@@ -96,7 +111,8 @@ class ObstacleDetector : public IModule {
     // ===== Gestion buzzers non-bloquants =====
     void updateBuzzer1();  // Gère BUZZER_1 (HAUT)
     void updateBuzzer2();  // Gère BUZZER_2 (BAS)
-    // int getIntervalForDistance(int distance);
+    void updateWaterAlert();  // ✅ NOUVEAU : Gère alerte eau non-bloquante
+    int getIntervalForDistance(int distance);
     String getDistanceCategory(int distance);
     
     // Fonctions eau
@@ -104,11 +120,7 @@ class ObstacleDetector : public IModule {
     int lireNiveauEau();
     void alerterEau(int niveau);
     
-    // Fonctions vibration
-    void vibrerCourt();
-    void vibrerLong();
-    void vibrerPattern(int count);
-    void stopVibration();
+
     
     // ===== Buzzers actifs (digitalWrite) =====
     void buzzer1On();

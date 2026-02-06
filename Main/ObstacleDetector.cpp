@@ -1,4 +1,4 @@
-// ObstacleDetector.cpp - VERSION BUZZERS ACTIFS PROGRESSIFS + TIMEOUT
+// ObstacleDetector.cpp - VERSION OPTIMISÉE SANS BLOCAGES
 #include "ObstacleDetector.h"
 #include "Logger.h"
 #include "Config.h"
@@ -29,12 +29,15 @@ ObstacleDetector::ObstacleDetector()
       buzzer2LastChange(0),
       currentDistanceHaut(-1),
       currentDistanceBas(-1),
-      lastMeasureTimeHaut(0),      // ⚠️ NOUVEAU
-      lastMeasureTimeBas(0) {      // ⚠️ NOUVEAU
+      lastMeasureTimeHaut(0),
+      lastMeasureTimeBas(0),
+      lastServoMoveTime(0),
+      waterAlertState(WATER_ALERT_OFF),
+      waterAlertLastChange(0) {
     
     Logger::info("🔧 [CONSTRUCTOR] ObstacleDetector créé");
     
-    // ⚠️ MODIFIÉ : Initialiser buffer à -1 au lieu de 999
+    // Initialiser buffer à -1
     for (int i = 0; i < OBSTACLE_BUFFER_SIZE; i++) {
         bufferHaut[i] = -1;
         bufferBas[i] = -1;
@@ -64,13 +67,14 @@ void ObstacleDetector::init() {
     Logger::info("✅ [INIT] HC-SR04 BAS : TRIG=" + String(OBSTACLE_TRIG_LOW) + 
                  " ECHO=" + String(OBSTACLE_ECHO_LOW));
 
-    // ===== CONFIGURATION SERVO =====
+    // ===== CONFIGURATION SERVO (UNE SEULE FOIS) =====
     Logger::info("🔄 [INIT] Configuration SERVO...");
     Logger::info("🔄 [INIT] Pin SERVO : GPIO" + String(OBSTACLE_SERVO_PIN));
     
     servoMoteur.setPeriodHertz(50);
     Logger::info("✅ [INIT] SERVO fréquence 50Hz OK");
     
+    // ✅ CORRECTION : Attach UNE SEULE FOIS
     bool servoAttached = servoMoteur.attach(OBSTACLE_SERVO_PIN, 500, 2400);
     if (servoAttached) {
         Logger::info("✅ [INIT] SERVO attaché avec succès");
@@ -80,24 +84,20 @@ void ObstacleDetector::init() {
     
     Logger::info("🔄 [INIT] Position servo à 90°...");
     servoMoteur.write(90);
-    delay(500);
+    delay(500);  // ⚠️ OK dans init() seulement
     Logger::info("✅ [INIT] SERVO positionné à 90°");
 
     // ===== TEST SERVO (RAPIDE) =====
     Logger::info("🧪 [INIT] TEST SERVO : Balayage 0-180...");
-    for (int angle = 0; angle <= 180; angle += 60) {  // ⚠️ MODIFIÉ : 60° au lieu de 30°
+    for (int angle = 0; angle <= 180; angle += 60) {
         servoMoteur.write(angle);
         Logger::info("🔄 [TEST] Servo angle=" + String(angle));
-        delay(150);  // ⚠️ MODIFIÉ : 150ms au lieu de 200ms
+        delay(150);  // ⚠️ OK dans init() seulement
     }
     servoMoteur.write(90);
     Logger::info("✅ [INIT] Test SERVO terminé - retour 90°");
 
-    // ===== CONFIGURATION VIBRATION =====
-    Logger::info("📳 [INIT] Configuration moteur vibrant...");
-    pinMode(OBSTACLE_VIBRATOR_PIN, OUTPUT);
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
-    Logger::info("✅ [INIT] Moteur vibrant : GPIO" + String(OBSTACLE_VIBRATOR_PIN));
+
 
     // ===== CONFIGURATION CAPTEUR EAU =====
     Logger::info("💧 [INIT] Configuration capteur eau...");
@@ -116,15 +116,15 @@ void ObstacleDetector::init() {
     // ===== TEST BUZZERS (RAPIDE) =====
     Logger::info("🔊 [INIT] TEST BUZZER 1...");
     digitalWrite(BUZZER_1_PIN, HIGH);
-    delay(200);  // ⚠️ MODIFIÉ : 200ms au lieu de 300ms
+    delay(200);  // ⚠️ OK dans init() seulement
     digitalWrite(BUZZER_1_PIN, LOW);
     Logger::info("✅ [INIT] BUZZER 1 testé");
     
-    delay(150);  // ⚠️ MODIFIÉ : 150ms au lieu de 200ms
+    delay(150);  // ⚠️ OK dans init() seulement
     
     Logger::info("🔊 [INIT] TEST BUZZER 2...");
     digitalWrite(BUZZER_2_PIN, HIGH);
-    delay(200);  // ⚠️ MODIFIÉ : 200ms au lieu de 300ms
+    delay(200);  // ⚠️ OK dans init() seulement
     digitalWrite(BUZZER_2_PIN, LOW);
     Logger::info("✅ [INIT] BUZZER 2 testé");
 
@@ -135,7 +135,7 @@ void ObstacleDetector::init() {
 }
 
 // =======================================================
-// UPDATE
+// UPDATE - ✅ SANS AUCUN DELAY
 // =======================================================
 void ObstacleDetector::update() {
     if (!ready) {
@@ -144,10 +144,12 @@ void ObstacleDetector::update() {
 
     unsigned long currentTime = millis();
     
-    // Throttle
+    // Throttle général
     if (currentTime - lastObstacleCheckTime < OBSTACLE_CHECK_INTERVAL) {
+        // Même en throttle, on update les buzzers
         updateBuzzer1();
         updateBuzzer2();
+        updateWaterAlert();  // ✅ NOUVEAU : Alerte eau non-bloquante
         return;
     }
     
@@ -164,11 +166,12 @@ void ObstacleDetector::update() {
     // Vérifier eau
     if (WATER_SENSOR_ENABLED) {
         verifierEau();
+        updateWaterAlert();  // ✅ NOUVEAU : Alerte eau non-bloquante
     }
 }
 
 // =======================================================
-// ⚠️ MODIFIÉ : UPDATE BUZZER 1 (HAUT) - AVEC TIMEOUT
+// ✅ CORRECTION : UPDATE BUZZER 1 (HAUT) - TIMEOUT AUGMENTÉ
 // =======================================================
 // =======================================================
 // ⚠️ SIMPLIFIÉ : UPDATE BUZZER 1 - VERSION RAPIDE
@@ -179,8 +182,8 @@ void ObstacleDetector::update() {
 void ObstacleDetector::updateBuzzer1() {
     unsigned long now = millis();
     
-    // Timeout
-    if (now - lastMeasureTimeHaut > 300) {
+    // ⚠️ NOUVEAU : Timeout - si pas de mesure depuis 500ms, éteindre
+    if (now - lastMeasureTimeHaut > 500) {
         if (buzzer1State != BUZZER_OFF) {
             buzzer1Off();
             buzzer1State = BUZZER_OFF;
@@ -198,9 +201,23 @@ void ObstacleDetector::updateBuzzer1() {
         return;
     }
     
-    // ⚠️ SIMPLIFIÉ : Bip simple toutes les 0.5 secondes
+    // Danger immédiat : son continu
+    if (currentDistanceHaut < BUZZER_DISTANCE_RAPIDE) {
+        if (buzzer1State != BUZZER_CONTINUOUS) {
+            buzzer1On();
+            buzzer1State = BUZZER_CONTINUOUS;
+            Logger::warn("🚨 [BUZZER1] MODE CONTINU (distance=" + String(currentDistanceHaut) + "cm)");
+        }
+        return;
+    }
+    
+    // Calcul de l'intervalle selon la distance
+    int interval = getIntervalForDistance(currentDistanceHaut);
+    
+    // Machine à états pour bip simple
     switch (buzzer1State) {
         case BUZZER_OFF:
+        case BUZZER_CONTINUOUS:  // ⚠️ AJOUT : Reset depuis continu
             buzzer1On();
             buzzer1State = BUZZER_BIP_ON;
             buzzer1LastChange = now;
@@ -232,14 +249,11 @@ void ObstacleDetector::updateBuzzer1() {
 // =======================================================
 // ⚠️ MODIFIÉ : UPDATE BUZZER 2 (BAS) - AVEC TIMEOUT
 // =======================================================
-// =======================================================
-// ⚠️ SIMPLIFIÉ : UPDATE BUZZER 2 - 1 SEUL BIP À 30CM
-// =======================================================
 void ObstacleDetector::updateBuzzer2() {
     unsigned long now = millis();
     
-    // Timeout
-    if (now - lastMeasureTimeBas > 300) {
+    // ⚠️ NOUVEAU : Timeout - si pas de mesure depuis 500ms, éteindre
+    if (now - lastMeasureTimeBas > 500) {
         if (buzzer2State != BUZZER_OFF) {
             buzzer2Off();
             buzzer2State = BUZZER_OFF;
@@ -260,6 +274,7 @@ void ObstacleDetector::updateBuzzer2() {
     // ⚠️ SIMPLIFIÉ : Bip simple toutes les 0.5 secondes
     switch (buzzer2State) {
         case BUZZER_OFF:
+        case BUZZER_CONTINUOUS:  // ⚠️ AJOUT : Reset depuis continu
             buzzer2On();
             buzzer2State = BUZZER_BIP_ON;
             buzzer2LastChange = now;
@@ -284,6 +299,43 @@ void ObstacleDetector::updateBuzzer2() {
             
         default:
             buzzer2State = BUZZER_OFF;
+            break;
+    }
+}
+
+// =======================================================
+// ✅ NOUVEAU : UPDATE ALERTE EAU NON-BLOQUANTE
+// =======================================================
+void ObstacleDetector::updateWaterAlert() {
+    unsigned long now = millis();
+    
+    switch (waterAlertState) {
+        case WATER_ALERT_OFF:
+            // Rien à faire
+            break;
+            
+        case WATER_ALERT_BIP1_ON:
+            if (now - waterAlertLastChange >= 300) {
+                digitalWrite(BUZZER_2_PIN, LOW);
+                waterAlertState = WATER_ALERT_BIP1_OFF;
+                waterAlertLastChange = now;
+            }
+            break;
+            
+        case WATER_ALERT_BIP1_OFF:
+            if (now - waterAlertLastChange >= 100) {
+                digitalWrite(BUZZER_2_PIN, HIGH);
+                waterAlertState = WATER_ALERT_BIP2_ON;
+                waterAlertLastChange = now;
+            }
+            break;
+            
+        case WATER_ALERT_BIP2_ON:
+            if (now - waterAlertLastChange >= 300) {
+                digitalWrite(BUZZER_2_PIN, LOW);
+                waterAlertState = WATER_ALERT_OFF;
+                waterAlertLastChange = now;
+            }
             break;
     }
 }
@@ -326,10 +378,15 @@ void ObstacleDetector::stop() {
     Logger::info("🛑 [STOP] Arrêt ObstacleDetector...");
     buzzer1Off();
     buzzer2Off();
-    stopVibration();
-    servoMoteur.detach();
+    
+    // ✅ CORRECTION : Detach seulement au stop
+    if (servoMoteur.attached()) {
+        servoMoteur.detach();
+    }
+    
     buzzer1State = BUZZER_OFF;
     buzzer2State = BUZZER_OFF;
+    waterAlertState = WATER_ALERT_OFF;
     currentDistanceHaut = -1;
     currentDistanceBas = -1;
     ready = false;
@@ -391,44 +448,43 @@ WaterSensorData ObstacleDetector::getWaterSensorData() const {
 }
 
 // =======================================================
-// ⚠️ MODIFIÉ : VÉRIFIER OBSTACLE HAUT
+// ✅ CORRECTION : VÉRIFIER OBSTACLE HAUT
 // =======================================================
 void ObstacleDetector::verifierObstacleHaut() {
     int distance = mesureDistanceFiltre(OBSTACLE_TRIG_HIGH, OBSTACLE_ECHO_HIGH,
                                         bufferHaut, &indexBufferHaut);
 
-    // ⚠️ MODIFIÉ : Réinitialiser TOUT
+    // Mesure invalide
     if (distance <= 0 || distance >= 900) {
-        currentDistanceHaut = -1;
-        distPrecedenteHaut = -1;
-        lastDistanceHaut = -1;  // ⚠️ AJOUT
+        // ✅ CORRECTION : Ne pas réinitialiser immédiatement
+        // On garde les anciennes valeurs pour éviter les coupures
         return;
     }
 
-    // ⚠️ MODIFIÉ : Réinitialiser si variation excessive
+    // Variation excessive (probable erreur)
     if (distPrecedenteHaut != -1 && abs(distance - distPrecedenteHaut) > 150) {
-        currentDistanceHaut = -1;
-        distPrecedenteHaut = -1;
-        lastDistanceHaut = -1;  // ⚠️ AJOUT
+        // ✅ CORRECTION : On ignore cette mesure mais on garde l'ancienne
         return;
     }
 
-    // ⚠️ MODIFIÉ : Réinitialiser si distance > 300cm
+    // Distance trop grande (hors portée)
     if (distance > 300) {
         currentDistanceHaut = -1;
         distPrecedenteHaut = -1;
-        lastDistanceHaut = -1;  // ⚠️ AJOUT
+        lastDistanceHaut = -1;
         return;
     }
 
-    // ⚠️ NOUVEAU : Mesure valide - mettre à jour timestamp
+    // Mesure valide - mettre à jour
     distPrecedenteHaut = distance;
     lastDistanceHaut = distance;
     currentDistanceHaut = distance;
-    lastMeasureTimeHaut = millis();  // ⚠️ AJOUT
+    lastMeasureTimeHaut = millis();
 
+    #ifdef DEBUG_MODE
     String category = getDistanceCategory(distance);
     Logger::info("🔍 [HAUT] Distance=" + String(distance) + "cm [" + category + "]");
+    #endif
 
     if (distance < OBSTACLE_DIST_SECURITE_HAUT) {
         lastObstacle.distance = distance;
@@ -439,9 +495,18 @@ void ObstacleDetector::verifierObstacleHaut() {
 }
 
 // =======================================================
-// ⚠️ MODIFIÉ : BALAYER NIVEAU BAS
+// ✅ CORRECTION : BALAYER NIVEAU BAS - SANS ATTACH/DETACH
 // =======================================================
 void ObstacleDetector::balayerNiveauBas() {
+    unsigned long now = millis();
+    
+    // ✅ CORRECTION : Throttle pour le servo (éviter mouvements trop rapides)
+    if (now - lastServoMoveTime < OBSTACLE_SERVO_DELAY) {
+        return;
+    }
+    
+    lastServoMoveTime = now;
+    
     angleActuel += directionDroite ? OBSTACLE_ANGLE_STEP : -OBSTACLE_ANGLE_STEP;
 
     if (angleActuel >= OBSTACLE_ANGLE_MAX) {
@@ -453,51 +518,44 @@ void ObstacleDetector::balayerNiveauBas() {
         directionDroite = true;
     }
 
-    // ⚠️ NOUVEAU : Attach/Detach pour économiser
-    servoMoteur.attach(OBSTACLE_SERVO_PIN, 500, 2400);
+    // ✅ CORRECTION : Pas de attach/detach, juste write
     servoMoteur.write(angleActuel);
-    delay(OBSTACLE_SERVO_DELAY);
-    servoMoteur.detach();  // ⚠️ AJOUT
 
     int distance = mesureDistanceFiltre(OBSTACLE_TRIG_LOW, OBSTACLE_ECHO_LOW,
                                         bufferBas, &indexBufferBas);
 
-    // ⚠️ MODIFIÉ : Réinitialiser TOUT
+    // Mesure invalide
     if (distance <= 0 || distance >= 900) {
-        currentDistanceBas = -1;
-        distPrecedenteBas = -1;
-        lastDistanceBas = -1;  // ⚠️ AJOUT
+        // ✅ CORRECTION : Ne pas réinitialiser immédiatement
         return;
     }
 
-    // ⚠️ MODIFIÉ : Réinitialiser si variation excessive
+    // Variation excessive
     if (distPrecedenteBas != -1 && abs(distance - distPrecedenteBas) > 150) {
-        currentDistanceBas = -1;
-        distPrecedenteBas = -1;
-        lastDistanceBas = -1;  // ⚠️ AJOUT
+        // ✅ CORRECTION : On ignore cette mesure
         return;
     }
 
-    // ⚠️ MODIFIÉ : Réinitialiser si distance > 300cm
+    // Distance trop grande
     if (distance > 300) {
         currentDistanceBas = -1;
         distPrecedenteBas = -1;
-        lastDistanceBas = -1;  // ⚠️ AJOUT
+        lastDistanceBas = -1;
         return;
     }
 
-    // ⚠️ NOUVEAU : Mesure valide - mettre à jour timestamp
+    // Mesure valide
     distPrecedenteBas = distance;
     lastDistanceBas = distance;
     currentDistanceBas = distance;
-    lastMeasureTimeBas = millis();  // ⚠️ AJOUT
+    lastMeasureTimeBas = millis();
 
     // String dir = (angleActuel < 60) ? "GAUCHE" :
     //              (angleActuel > 120) ? "DROITE" : "CENTRE";
     // String category = getDistanceCategory(distance);
     
-    // Logger::info("🔍 [BAS] Angle=" + String(angleActuel) + "° Distance=" + 
-    //              String(distance) + "cm [" + dir + " / " + category + "]");
+    Logger::info("🔍 [BAS] Angle=" + String(angleActuel) + "° Distance=" + 
+                 String(distance) + "cm [" + dir + " / " + category + "]");
 
     if (distance < OBSTACLE_DIST_SECURITE_BAS) {
         lastObstacle.distance = distance;
@@ -535,6 +593,7 @@ void ObstacleDetector::verifierEau() {
 int ObstacleDetector::lireNiveauEau() {
     waterRawValue = analogRead(WATER_SENSOR_PIN);
     
+    // ✅ CORRECTION : Buffer statique au lieu de stack
     static int readings[5] = {0, 0, 0, 0, 0};
     static int index = 0;
     
@@ -553,39 +612,33 @@ int ObstacleDetector::lireNiveauEau() {
 }
 
 // =======================================================
-// ALERTER EAU (BUZZER 2 - PATTERNS SPÉCIAUX)
+// ✅ CORRECTION : ALERTER EAU - NON-BLOQUANT
 // =======================================================
 void ObstacleDetector::alerterEau(int niveau) {
     if (niveau > WATER_THRESHOLD_HIGH) {
         Logger::warn("🔊 [EAU] Alerte NIVEAU ÉLEVÉ (2 bips)");
         
+        // ✅ CORRECTION : Démarre la machine à états non-bloquante
         digitalWrite(BUZZER_2_PIN, HIGH);
-        delay(300);
-        digitalWrite(BUZZER_2_PIN, LOW);
-        delay(100);
-        digitalWrite(BUZZER_2_PIN, HIGH);
-        delay(300);
-        digitalWrite(BUZZER_2_PIN, LOW);
+        waterAlertState = WATER_ALERT_BIP1_ON;
+        waterAlertLastChange = millis();
         
-        if (OBSTACLE_VIBRATION_ENABLED) {
-            vibrerPattern(4);
-        }
+
         
     } else if (niveau > WATER_THRESHOLD_LOW) {
         Logger::info("🔊 [EAU] Alerte niveau moyen (1 bip)");
         
+        // ✅ CORRECTION : Un seul bip court
         digitalWrite(BUZZER_2_PIN, HIGH);
-        delay(300);
-        digitalWrite(BUZZER_2_PIN, LOW);
+        waterAlertState = WATER_ALERT_BIP1_ON;
+        waterAlertLastChange = millis();
         
-        if (OBSTACLE_VIBRATION_ENABLED) {
-            vibrerCourt();
-        }
+
     }
 }
 
 // =======================================================
-// MESURE DISTANCE
+// ✅ CORRECTION : MESURE DISTANCE - TIMEOUT RÉDUIT
 // =======================================================
 int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
     digitalWrite(trigPin, LOW);
@@ -594,7 +647,9 @@ int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
 
-    long duration = pulseIn(echoPin, HIGH, 50000);
+    // ✅ CORRECTION : Timeout réduit à 30ms (au lieu de 50ms)
+    // 30ms = ~5m de portée max (suffisant pour une canne)
+    long duration = pulseIn(echoPin, HIGH, 30000);
     
     if (duration == 0) {
         return -1;
@@ -610,7 +665,7 @@ int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
 }
 
 // =======================================================
-// ⚠️ MODIFIÉ : FILTRAGE MÉDIAN
+// ✅ CORRECTION : FILTRAGE MÉDIAN AMÉLIORÉ
 // =======================================================
 // =======================================================
 // ⚠️ MODIFIÉ : FILTRAGE AMÉLIORÉ - 2 MESURES + 50MS
@@ -620,23 +675,26 @@ int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
 // =======================================================
 int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
                                            int* buffer, int* index) {
-    // ⚠️ 2 mesures avec délai de 10ms (au lieu de 50ms)
+    // ⚠️ MODIFIÉ : 2 mesures au lieu de 3
     int readings[2];
+    for (int i = 0; i < 2; i++) {
+        readings[i] = mesureDistance(trigPin, echoPin);
+        delayMicroseconds(100);
+    }
     
-    readings[0] = mesureDistance(trigPin, echoPin);
-    delay(10);  // ⚠️ RÉDUIT : 50ms → 10ms
-    
-    readings[1] = mesureDistance(trigPin, echoPin);
-    
-    // Validation stricte
-    bool mesure1Valide = (readings[0] > 0 && readings[0] < 400);
-    bool mesure2Valide = (readings[1] > 0 && readings[1] < 400);
-    
-    if (!mesure1Valide || !mesure2Valide) {
-        for (int i = 0; i < OBSTACLE_BUFFER_SIZE; i++) {
-            buffer[i] = -1;
+    // Rejeter les mesures invalides
+    int validCount = 0;
+    int sum = 0;
+    for (int i = 0; i < 2; i++) {
+        if (readings[i] > 0 && readings[i] < 400) {
+            sum += readings[i];
+            validCount++;
         }
-        *index = 0;
+    }
+    
+    // ✅ CORRECTION : Si invalide, on garde l'ancien buffer
+    if (validCount == 0) {
+        // Ne pas vider le buffer, juste retourner -1
         return -1;
     }
     
@@ -667,7 +725,13 @@ int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
         return -1;
     }
     
-    int moyenne = sum / count;
+    // Tri
+    for (int i = 0; i < OBSTACLE_BUFFER_SIZE - 1; i++)
+        for (int j = 0; j < OBSTACLE_BUFFER_SIZE - i - 1; j++)
+            if (sorted[j] > sorted[j + 1])
+                std::swap(sorted[j], sorted[j + 1]);
+    
+    int median = sorted[OBSTACLE_BUFFER_SIZE / 2];
     
     if (moyenne <= 0 || moyenne > 900) {
         return -1;
@@ -702,44 +766,4 @@ void ObstacleDetector::buzzer2On() {
 // =======================================================
 void ObstacleDetector::buzzer2Off() {
     digitalWrite(BUZZER_2_PIN, LOW);
-}
-
-// =======================================================
-// VIBRATION COURTE
-// =======================================================
-void ObstacleDetector::vibrerCourt() {
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
-    delay(OBSTACLE_VIBRATION_PATTERN_SHORT);
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
-}
-
-// =======================================================
-// VIBRATION LONGUE
-// =======================================================
-void ObstacleDetector::vibrerLong() {
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
-    delay(OBSTACLE_VIBRATION_PATTERN_LONG);
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
-}
-
-// =======================================================
-// PATTERN DE VIBRATIONS
-// =======================================================
-void ObstacleDetector::vibrerPattern(int count) {
-    for (int i = 0; i < count; i++) {
-        digitalWrite(OBSTACLE_VIBRATOR_PIN, HIGH);
-        delay(OBSTACLE_VIBRATION_PATTERN_SHORT);
-        digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
-        
-        if (i < count - 1) {
-            delay(OBSTACLE_VIBRATION_PAUSE);
-        }
-    }
-}
-
-// =======================================================
-// ARRÊTER VIBRATION
-// =======================================================
-void ObstacleDetector::stopVibration() {
-    digitalWrite(OBSTACLE_VIBRATOR_PIN, LOW);
 }
