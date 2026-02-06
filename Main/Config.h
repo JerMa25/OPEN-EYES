@@ -63,16 +63,18 @@
 #define WATER_SENSOR_PIN      34
 
 // ===== BUZZERS - PARAMÈTRES PROGRESSIFS =====
-#define BUZZER_DISTANCE_SILENCE  120  // > 120 cm : silence
-#define BUZZER_DISTANCE_LENT     60   // 60-120 cm : bip lent
-#define BUZZER_DISTANCE_MOYEN    30   // 30-60 cm : bip moyen
-#define BUZZER_DISTANCE_RAPIDE   12   // 12-30 cm : bip rapide
-                                      // < 12 cm : son continu
+// #define BUZZER_DISTANCE_SILENCE  120  // > 120 cm : silence
+// #define BUZZER_DISTANCE_LENT     60   // 60-120 cm : bip lent
+// #define BUZZER_DISTANCE_MOYEN    30   // 30-60 cm : bip moyen
+// #define BUZZER_DISTANCE_RAPIDE   12   // 12-30 cm : bip rapide
+//                                       // < 12 cm : son continu
 
-#define BUZZER_INTERVAL_LENT     1000  // 1 seconde entre bips
-#define BUZZER_INTERVAL_MOYEN    500   // 0.5 seconde
-#define BUZZER_INTERVAL_RAPIDE   200   // 0.2 seconde
+// #define BUZZER_INTERVAL_LENT     1000  // 1 seconde entre bips
+// #define BUZZER_INTERVAL_MOYEN    500   // 0.5 seconde
+// #define BUZZER_INTERVAL_RAPIDE   200   // 0.2 seconde
 
+#define BUZZER_DISTANCE_SEUIL    30   // ⚠️ Bip si distance ≤ 30cm
+#define BUZZER_INTERVAL          500  // ⚠️ 1 bip toutes les 0.5 secondes
 #define BUZZER_BIP_DURATION      100   // Durée d'un bip (ms)
 #define BUZZER_DOUBLE_BIP_GAP    80    // Pause entre 2 bips du double-bip
 
@@ -83,11 +85,11 @@
 // ===== OBSTACLE DETECTOR - PARAMÈTRES SERVO =====
 #define OBSTACLE_ANGLE_MIN      0
 #define OBSTACLE_ANGLE_MAX      180
-#define OBSTACLE_ANGLE_STEP     15
-#define OBSTACLE_SERVO_DELAY    50
+#define OBSTACLE_ANGLE_STEP     30
+#define OBSTACLE_SERVO_DELAY    30
 
 // ===== OBSTACLE DETECTOR - FILTRAGE =====
-#define OBSTACLE_BUFFER_SIZE        5
+#define OBSTACLE_BUFFER_SIZE        3
 #define OBSTACLE_SEUIL_VARIATION    40
 #define OBSTACLE_ALERT_COOLDOWN     1500
 #define OBSTACLE_MAX_DISTANCE       400  // ✅ AJOUTER CETTE LIGNE
@@ -118,7 +120,7 @@
 #define OBSTACLE_VIBRATION_PAUSE         50
 
 // ===== CAPTEUR D'EAU - PARAMÈTRES =====
-#define WATER_SENSOR_ENABLED         true
+#define WATER_SENSOR_ENABLED         false
 #define WATER_THRESHOLD_LOW          1000
 #define WATER_THRESHOLD_HIGH         3000
 #define WATER_CHECK_INTERVAL         1000
@@ -129,7 +131,7 @@
 #define WATER_BLE_UPDATE_INTERVAL     1000
 
 // ===== OBSTACLE DETECTOR - GÉNÉRAL =====
-#define OBSTACLE_CHECK_INTERVAL 100
+#define OBSTACLE_CHECK_INTERVAL 50
 
 // ===== SEUILS DE NAVIGATION =====
 #define ARRIVAL_DISTANCE_METERS 10.0

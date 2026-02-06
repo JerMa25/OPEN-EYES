@@ -170,11 +170,17 @@ void ObstacleDetector::update() {
 // =======================================================
 // ⚠️ MODIFIÉ : UPDATE BUZZER 1 (HAUT) - AVEC TIMEOUT
 // =======================================================
+// =======================================================
+// ⚠️ SIMPLIFIÉ : UPDATE BUZZER 1 - VERSION RAPIDE
+// =======================================================
+// =======================================================
+// ⚠️ SIMPLIFIÉ : UPDATE BUZZER 1 - 1 SEUL BIP À 30CM
+// =======================================================
 void ObstacleDetector::updateBuzzer1() {
     unsigned long now = millis();
     
-    // ⚠️ NOUVEAU : Timeout - si pas de mesure depuis 500ms, éteindre
-    if (now - lastMeasureTimeHaut > 500) {
+    // Timeout
+    if (now - lastMeasureTimeHaut > 300) {
         if (buzzer1State != BUZZER_OFF) {
             buzzer1Off();
             buzzer1State = BUZZER_OFF;
@@ -183,8 +189,8 @@ void ObstacleDetector::updateBuzzer1() {
         return;
     }
     
-    // Si pas d'obstacle proche, éteindre
-    if (currentDistanceHaut == -1 || currentDistanceHaut > BUZZER_DISTANCE_SILENCE) {
+    // ⚠️ NOUVEAU : Bip UNIQUEMENT si distance ≤ 30cm
+    if (currentDistanceHaut == -1 || currentDistanceHaut > BUZZER_DISTANCE_SEUIL) {
         if (buzzer1State != BUZZER_OFF) {
             buzzer1Off();
             buzzer1State = BUZZER_OFF;
@@ -192,26 +198,13 @@ void ObstacleDetector::updateBuzzer1() {
         return;
     }
     
-    // Danger immédiat : son continu
-    if (currentDistanceHaut < BUZZER_DISTANCE_RAPIDE) {
-        if (buzzer1State != BUZZER_CONTINUOUS) {
-            buzzer1On();
-            buzzer1State = BUZZER_CONTINUOUS;
-            Logger::warn("🚨 [BUZZER1] MODE CONTINU (distance=" + String(currentDistanceHaut) + "cm)");
-        }
-        return;
-    }
-    
-    // Calcul de l'intervalle selon la distance
-    int interval = getIntervalForDistance(currentDistanceHaut);
-    
-    // Machine à états pour bip simple
+    // ⚠️ SIMPLIFIÉ : Bip simple toutes les 0.5 secondes
     switch (buzzer1State) {
         case BUZZER_OFF:
-        case BUZZER_CONTINUOUS:  // ⚠️ AJOUT : Reset depuis continu
             buzzer1On();
             buzzer1State = BUZZER_BIP_ON;
             buzzer1LastChange = now;
+            Logger::info("🔊 [BUZZER1] Obstacle à " + String(currentDistanceHaut) + "cm");
             break;
             
         case BUZZER_BIP_ON:
@@ -223,7 +216,7 @@ void ObstacleDetector::updateBuzzer1() {
             break;
             
         case BUZZER_BIP_WAIT:
-            if (now - buzzer1LastChange >= interval) {
+            if (now - buzzer1LastChange >= BUZZER_INTERVAL) {
                 buzzer1On();
                 buzzer1State = BUZZER_BIP_ON;
                 buzzer1LastChange = now;
@@ -239,11 +232,14 @@ void ObstacleDetector::updateBuzzer1() {
 // =======================================================
 // ⚠️ MODIFIÉ : UPDATE BUZZER 2 (BAS) - AVEC TIMEOUT
 // =======================================================
+// =======================================================
+// ⚠️ SIMPLIFIÉ : UPDATE BUZZER 2 - 1 SEUL BIP À 30CM
+// =======================================================
 void ObstacleDetector::updateBuzzer2() {
     unsigned long now = millis();
     
-    // ⚠️ NOUVEAU : Timeout - si pas de mesure depuis 500ms, éteindre
-    if (now - lastMeasureTimeBas > 500) {
+    // Timeout
+    if (now - lastMeasureTimeBas > 300) {
         if (buzzer2State != BUZZER_OFF) {
             buzzer2Off();
             buzzer2State = BUZZER_OFF;
@@ -252,8 +248,8 @@ void ObstacleDetector::updateBuzzer2() {
         return;
     }
     
-    // Si pas d'obstacle proche, éteindre
-    if (currentDistanceBas == -1 || currentDistanceBas > BUZZER_DISTANCE_SILENCE) {
+    // ⚠️ NOUVEAU : Bip UNIQUEMENT si distance ≤ 30cm
+    if (currentDistanceBas == -1 || currentDistanceBas > BUZZER_DISTANCE_SEUIL) {
         if (buzzer2State != BUZZER_OFF) {
             buzzer2Off();
             buzzer2State = BUZZER_OFF;
@@ -261,56 +257,27 @@ void ObstacleDetector::updateBuzzer2() {
         return;
     }
     
-    // Danger immédiat : son continu
-    if (currentDistanceBas < BUZZER_DISTANCE_RAPIDE) {
-        if (buzzer2State != BUZZER_CONTINUOUS) {
-            buzzer2On();
-            buzzer2State = BUZZER_CONTINUOUS;
-            Logger::warn("🚨 [BUZZER2] MODE CONTINU (distance=" + String(currentDistanceBas) + "cm)");
-        }
-        return;
-    }
-    
-    // Calcul de l'intervalle selon la distance
-    int interval = getIntervalForDistance(currentDistanceBas);
-    
-    // Machine à états pour double bip
+    // ⚠️ SIMPLIFIÉ : Bip simple toutes les 0.5 secondes
     switch (buzzer2State) {
         case BUZZER_OFF:
-        case BUZZER_CONTINUOUS:  // ⚠️ AJOUT : Reset depuis continu
             buzzer2On();
-            buzzer2State = BUZZER_DOUBLE_BIP_FIRST;
+            buzzer2State = BUZZER_BIP_ON;
             buzzer2LastChange = now;
+            Logger::info("🔊 [BUZZER2] Obstacle à " + String(currentDistanceBas) + "cm");
             break;
             
-        case BUZZER_DOUBLE_BIP_FIRST:
+        case BUZZER_BIP_ON:
             if (now - buzzer2LastChange >= BUZZER_BIP_DURATION) {
                 buzzer2Off();
-                buzzer2State = BUZZER_DOUBLE_BIP_GAP_STATE;
+                buzzer2State = BUZZER_BIP_WAIT;
                 buzzer2LastChange = now;
             }
             break;
             
-        case BUZZER_DOUBLE_BIP_GAP_STATE:
-            if (now - buzzer2LastChange >= BUZZER_DOUBLE_BIP_GAP) {
+        case BUZZER_BIP_WAIT:
+            if (now - buzzer2LastChange >= BUZZER_INTERVAL) {
                 buzzer2On();
-                buzzer2State = BUZZER_DOUBLE_BIP_SECOND;
-                buzzer2LastChange = now;
-            }
-            break;
-            
-        case BUZZER_DOUBLE_BIP_SECOND:
-            if (now - buzzer2LastChange >= BUZZER_BIP_DURATION) {
-                buzzer2Off();
-                buzzer2State = BUZZER_DOUBLE_BIP_WAIT;
-                buzzer2LastChange = now;
-            }
-            break;
-            
-        case BUZZER_DOUBLE_BIP_WAIT:
-            if (now - buzzer2LastChange >= interval) {
-                buzzer2On();
-                buzzer2State = BUZZER_DOUBLE_BIP_FIRST;
+                buzzer2State = BUZZER_BIP_ON;
                 buzzer2LastChange = now;
             }
             break;
@@ -324,32 +291,32 @@ void ObstacleDetector::updateBuzzer2() {
 // =======================================================
 // CALCUL INTERVALLE SELON DISTANCE
 // =======================================================
-int ObstacleDetector::getIntervalForDistance(int distance) {
-    if (distance >= BUZZER_DISTANCE_LENT) {
-        return BUZZER_INTERVAL_LENT;
-    } else if (distance >= BUZZER_DISTANCE_MOYEN) {
-        return BUZZER_INTERVAL_MOYEN;
-    } else if (distance >= BUZZER_DISTANCE_RAPIDE) {
-        return BUZZER_INTERVAL_RAPIDE;
-    }
-    return 0; // Continu
-}
+// int ObstacleDetector::getIntervalForDistance(int distance) {
+//     if (distance >= BUZZER_DISTANCE_LENT) {
+//         return BUZZER_INTERVAL_LENT;
+//     } else if (distance >= BUZZER_DISTANCE_MOYEN) {
+//         return BUZZER_INTERVAL_MOYEN;
+//     } else if (distance >= BUZZER_DISTANCE_RAPIDE) {
+//         return BUZZER_INTERVAL_RAPIDE;
+//     }
+//     return 0; // Continu
+// }
 
 // =======================================================
 // CATÉGORIE DE DISTANCE (POUR LOGS)
 // =======================================================
 String ObstacleDetector::getDistanceCategory(int distance) {
-    if (distance < BUZZER_DISTANCE_RAPIDE) {
-        return "DANGER";
-    } else if (distance < BUZZER_DISTANCE_MOYEN) {
-        return "RAPIDE";
-    } else if (distance < BUZZER_DISTANCE_LENT) {
-        return "MOYEN";
-    } else if (distance < BUZZER_DISTANCE_SILENCE) {
-        return "LENT";
+
+    if (distance <= BUZZER_DISTANCE_SEUIL) {
+
+        return "ALERTE";
+
     } else {
-        return "SILENCE";
+
+        return "OK";
+
     }
+
 }
 
 // =======================================================
@@ -525,12 +492,12 @@ void ObstacleDetector::balayerNiveauBas() {
     currentDistanceBas = distance;
     lastMeasureTimeBas = millis();  // ⚠️ AJOUT
 
-    String dir = (angleActuel < 60) ? "GAUCHE" :
-                 (angleActuel > 120) ? "DROITE" : "CENTRE";
-    String category = getDistanceCategory(distance);
+    // String dir = (angleActuel < 60) ? "GAUCHE" :
+    //              (angleActuel > 120) ? "DROITE" : "CENTRE";
+    // String category = getDistanceCategory(distance);
     
-    Logger::info("🔍 [BAS] Angle=" + String(angleActuel) + "° Distance=" + 
-                 String(distance) + "cm [" + dir + " / " + category + "]");
+    // Logger::info("🔍 [BAS] Angle=" + String(angleActuel) + "° Distance=" + 
+    //              String(distance) + "cm [" + dir + " / " + category + "]");
 
     if (distance < OBSTACLE_DIST_SECURITE_BAS) {
         lastObstacle.distance = distance;
@@ -645,27 +612,27 @@ int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
 // =======================================================
 // ⚠️ MODIFIÉ : FILTRAGE MÉDIAN
 // =======================================================
+// =======================================================
+// ⚠️ MODIFIÉ : FILTRAGE AMÉLIORÉ - 2 MESURES + 50MS
+// =======================================================
+// =======================================================
+// ⚠️ OPTIMISÉ : FILTRAGE RAPIDE - 2 MESURES + 10MS
+// =======================================================
 int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
                                            int* buffer, int* index) {
-    // ⚠️ MODIFIÉ : 2 mesures au lieu de 3
+    // ⚠️ 2 mesures avec délai de 10ms (au lieu de 50ms)
     int readings[2];
-    for (int i = 0; i < 2; i++) {
-        readings[i] = mesureDistance(trigPin, echoPin);
-        delayMicroseconds(100);
-    }
     
-    // Rejeter les mesures invalides
-    int validCount = 0;
-    int sum = 0;
-    for (int i = 0; i < 2; i++) {
-        if (readings[i] > 0 && readings[i] < 400) {
-            sum += readings[i];
-            validCount++;
-        }
-    }
+    readings[0] = mesureDistance(trigPin, echoPin);
+    delay(10);  // ⚠️ RÉDUIT : 50ms → 10ms
     
-    // ⚠️ MODIFIÉ : Vider buffer si invalide
-    if (validCount == 0) {
+    readings[1] = mesureDistance(trigPin, echoPin);
+    
+    // Validation stricte
+    bool mesure1Valide = (readings[0] > 0 && readings[0] < 400);
+    bool mesure2Valide = (readings[1] > 0 && readings[1] < 400);
+    
+    if (!mesure1Valide || !mesure2Valide) {
         for (int i = 0; i < OBSTACLE_BUFFER_SIZE; i++) {
             buffer[i] = -1;
         }
@@ -673,43 +640,40 @@ int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
         return -1;
     }
     
-    // Moyenne des mesures valides
-    int avgDistance = sum / validCount;
+    int avgDistance = (readings[0] + readings[1]) / 2;
+    
+    // ⚠️ RÉDUIT : Écart max 30cm → 50cm (plus permissif)
+    int ecart = abs(readings[0] - readings[1]);
+    if (ecart > 50) {
+        return -1;
+    }
     
     // Ajouter au buffer
     buffer[*index] = avgDistance;
     *index = (*index + 1) % OBSTACLE_BUFFER_SIZE;
     
-    // Calculer la médiane du buffer
-    int sorted[OBSTACLE_BUFFER_SIZE];
-    memcpy(sorted, buffer, sizeof(sorted));
+    // ⚠️ SIMPLIFICATION : Pas de médiane, juste moyenne des valeurs valides
+    int sum = 0;
+    int count = 0;
     
-    // ⚠️ NOUVEAU : Compter valeurs valides
-    int validBufferCount = 0;
     for (int i = 0; i < OBSTACLE_BUFFER_SIZE; i++) {
-        if (sorted[i] > 0) {
-            validBufferCount++;
+        if (buffer[i] > 0 && buffer[i] < 400) {
+            sum += buffer[i];
+            count++;
         }
     }
     
-    if (validBufferCount == 0) {
+    if (count == 0) {
         return -1;
     }
     
-    // Tri
-    for (int i = 0; i < OBSTACLE_BUFFER_SIZE - 1; i++)
-        for (int j = 0; j < OBSTACLE_BUFFER_SIZE - i - 1; j++)
-            if (sorted[j] > sorted[j + 1])
-                std::swap(sorted[j], sorted[j + 1]);
+    int moyenne = sum / count;
     
-    int median = sorted[OBSTACLE_BUFFER_SIZE / 2];
-    
-    // Si médiane invalide
-    if (median <= 0 || median > 900) {
+    if (moyenne <= 0 || moyenne > 900) {
         return -1;
     }
     
-    return median;
+    return moyenne;
 }
 
 // =======================================================

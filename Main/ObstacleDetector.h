@@ -96,7 +96,7 @@ class ObstacleDetector : public IModule {
     // ===== Gestion buzzers non-bloquants =====
     void updateBuzzer1();  // Gère BUZZER_1 (HAUT)
     void updateBuzzer2();  // Gère BUZZER_2 (BAS)
-    int getIntervalForDistance(int distance);
+    // int getIntervalForDistance(int distance);
     String getDistanceCategory(int distance);
     
     // Fonctions eau
