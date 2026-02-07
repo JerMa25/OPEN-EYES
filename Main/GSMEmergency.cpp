@@ -365,6 +365,9 @@ void GSMEmergency::sendAlertToAll(const String& message) {
                 envoyesAvecSucces++;
             }
             delay(3500); // Délai entre chaque SMS (important pour SIM808)
+
+            //Reset watchdog APRÈS chaque SMS
+            esp_task_wdt_reset();
         }
     }
     

@@ -21,10 +21,12 @@ class GPSAssistance : public IModule {
     BluetoothManager& bluetooth;
     IMUData imuData;
     bool ready = false;
+    unsigned long lastBLESend = 0;  // ✅ AJOUTER
 
-    // --- Fonctions internes ---
     void initMPU();
+    void initMagnetometer();  // ✅ AJOUTER
     void readIMU();
+    void readMagnetometer();  // ✅ AJOUTER
 };
 
 #endif

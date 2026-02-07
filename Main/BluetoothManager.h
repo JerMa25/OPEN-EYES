@@ -22,6 +22,7 @@
 #define OBSTACLE_CHARACTERISTIC_UUID    "beb5483e-36e1-4688-b7f5-ea07361b26aa"
 #define IMU_CHARACTERISTIC_UUID         "beb5483e-36e1-4688-b7f5-ea07361b26ab"
 
+class GPSAssistance;
 // Structures pour les données des futurs modules
 struct WaterSensorData {
     float humidityLevel = 0.0;

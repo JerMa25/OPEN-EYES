@@ -32,7 +32,8 @@ enum WaterAlertState {
     WATER_ALERT_OFF,
     WATER_ALERT_BIP1_ON,
     WATER_ALERT_BIP1_OFF,
-    WATER_ALERT_BIP2_ON
+    WATER_ALERT_BIP2_ON,
+    WATER_ALERT_SINGLE_BIP
 };
 
 class ObstacleDetector : public IModule {

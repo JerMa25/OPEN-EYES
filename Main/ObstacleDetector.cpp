@@ -135,7 +135,7 @@ void ObstacleDetector::init() {
 }
 
 // =======================================================
-// UPDATE - ✅ SANS AUCUN DELAY
+// UPDATE - SANS DELAY
 // =======================================================
 void ObstacleDetector::update() {
     if (!ready) {
@@ -149,7 +149,7 @@ void ObstacleDetector::update() {
         // Même en throttle, on update les buzzers
         updateBuzzer1();
         updateBuzzer2();
-        updateWaterAlert();  // ✅ NOUVEAU : Alerte eau non-bloquante
+        updateWaterAlert();
         return;
     }
     
@@ -171,18 +171,12 @@ void ObstacleDetector::update() {
 }
 
 // =======================================================
-// ✅ CORRECTION : UPDATE BUZZER 1 (HAUT) - TIMEOUT AUGMENTÉ
-// =======================================================
-// =======================================================
-// ⚠️ SIMPLIFIÉ : UPDATE BUZZER 1 - VERSION RAPIDE
-// =======================================================
-// =======================================================
-// ⚠️ SIMPLIFIÉ : UPDATE BUZZER 1 - 1 SEUL BIP À 30CM
+// UPDATE BUZZER 1 (HAUT)
 // =======================================================
 void ObstacleDetector::updateBuzzer1() {
     unsigned long now = millis();
     
-    // ⚠️ NOUVEAU : Timeout - si pas de mesure depuis 500ms, éteindre
+    // Timeout - si pas de mesure depuis 500ms, éteindre
     if (now - lastMeasureTimeHaut > 500) {
         if (buzzer1State != BUZZER_OFF) {
             buzzer1Off();
@@ -192,7 +186,7 @@ void ObstacleDetector::updateBuzzer1() {
         return;
     }
     
-    // ⚠️ NOUVEAU : Bip UNIQUEMENT si distance ≤ 30cm
+    // Bip UNIQUEMENT si distance ≤ 30cm
     if (currentDistanceHaut == -1 || currentDistanceHaut > BUZZER_DISTANCE_SEUIL) {
         if (buzzer1State != BUZZER_OFF) {
             buzzer1Off();
@@ -212,12 +206,13 @@ void ObstacleDetector::updateBuzzer1() {
     }
     
     // Calcul de l'intervalle selon la distance
-    int interval = getIntervalForDistance(currentDistanceHaut);
+    // Calcul de l'intervalle selon la distance (Non utilisé pour l'instant - on utilise la constante)
+    // int interval = getIntervalForDistance(currentDistanceHaut);
     
     // Machine à états pour bip simple
     switch (buzzer1State) {
         case BUZZER_OFF:
-        case BUZZER_CONTINUOUS:  // ⚠️ AJOUT : Reset depuis continu
+        case BUZZER_CONTINUOUS:
             buzzer1On();
             buzzer1State = BUZZER_BIP_ON;
             buzzer1LastChange = now;
@@ -247,12 +242,17 @@ void ObstacleDetector::updateBuzzer1() {
 }
 
 // =======================================================
-// ⚠️ MODIFIÉ : UPDATE BUZZER 2 (BAS) - AVEC TIMEOUT
+// UPDATE BUZZER 2 (BAS)
 // =======================================================
 void ObstacleDetector::updateBuzzer2() {
     unsigned long now = millis();
     
-    // ⚠️ NOUVEAU : Timeout - si pas de mesure depuis 500ms, éteindre
+    // Priorité à l'alerte eau : si active, on ne touche pas au buzzer
+    if (waterAlertState != WATER_ALERT_OFF) {
+        return;
+    }
+
+    // Timeout - si pas de mesure depuis 500ms, éteindre
     if (now - lastMeasureTimeBas > 500) {
         if (buzzer2State != BUZZER_OFF) {
             buzzer2Off();
@@ -262,7 +262,7 @@ void ObstacleDetector::updateBuzzer2() {
         return;
     }
     
-    // ⚠️ NOUVEAU : Bip UNIQUEMENT si distance ≤ 30cm
+    // Bip UNIQUEMENT si distance ≤ 30cm
     if (currentDistanceBas == -1 || currentDistanceBas > BUZZER_DISTANCE_SEUIL) {
         if (buzzer2State != BUZZER_OFF) {
             buzzer2Off();
@@ -271,10 +271,10 @@ void ObstacleDetector::updateBuzzer2() {
         return;
     }
     
-    // ⚠️ SIMPLIFIÉ : Bip simple toutes les 0.5 secondes
+    // Bip simple toutes les 0.5 secondes
     switch (buzzer2State) {
         case BUZZER_OFF:
-        case BUZZER_CONTINUOUS:  // ⚠️ AJOUT : Reset depuis continu
+        case BUZZER_CONTINUOUS:
             buzzer2On();
             buzzer2State = BUZZER_BIP_ON;
             buzzer2LastChange = now;
@@ -304,7 +304,7 @@ void ObstacleDetector::updateBuzzer2() {
 }
 
 // =======================================================
-// ✅ NOUVEAU : UPDATE ALERTE EAU NON-BLOQUANTE
+// UPDATE ALERTE EAU NON-BLOQUANTE
 // =======================================================
 void ObstacleDetector::updateWaterAlert() {
     unsigned long now = millis();
@@ -331,6 +331,14 @@ void ObstacleDetector::updateWaterAlert() {
             break;
             
         case WATER_ALERT_BIP2_ON:
+            if (now - waterAlertLastChange >= 300) {
+                digitalWrite(BUZZER_2_PIN, LOW);
+                waterAlertState = WATER_ALERT_OFF;
+                waterAlertLastChange = now;
+            }
+            break;
+
+        case WATER_ALERT_SINGLE_BIP:
             if (now - waterAlertLastChange >= 300) {
                 digitalWrite(BUZZER_2_PIN, LOW);
                 waterAlertState = WATER_ALERT_OFF;
@@ -379,7 +387,7 @@ void ObstacleDetector::stop() {
     buzzer1Off();
     buzzer2Off();
     
-    // ✅ CORRECTION : Detach seulement au stop
+    // Detach seulement au stop
     if (servoMoteur.attached()) {
         servoMoteur.detach();
     }
@@ -448,7 +456,7 @@ WaterSensorData ObstacleDetector::getWaterSensorData() const {
 }
 
 // =======================================================
-// ✅ CORRECTION : VÉRIFIER OBSTACLE HAUT
+// VÉRIFIER OBSTACLE HAUT
 // =======================================================
 void ObstacleDetector::verifierObstacleHaut() {
     int distance = mesureDistanceFiltre(OBSTACLE_TRIG_HIGH, OBSTACLE_ECHO_HIGH,
@@ -456,14 +464,14 @@ void ObstacleDetector::verifierObstacleHaut() {
 
     // Mesure invalide
     if (distance <= 0 || distance >= 900) {
-        // ✅ CORRECTION : Ne pas réinitialiser immédiatement
+        // Ne pas réinitialiser immédiatement
         // On garde les anciennes valeurs pour éviter les coupures
         return;
     }
 
     // Variation excessive (probable erreur)
     if (distPrecedenteHaut != -1 && abs(distance - distPrecedenteHaut) > 150) {
-        // ✅ CORRECTION : On ignore cette mesure mais on garde l'ancienne
+        // On ignore cette mesure mais on garde l'ancienne
         return;
     }
 
@@ -495,12 +503,13 @@ void ObstacleDetector::verifierObstacleHaut() {
 }
 
 // =======================================================
-// ✅ CORRECTION : BALAYER NIVEAU BAS - SANS ATTACH/DETACH
+// BALAYER NIVEAU BAS
 // =======================================================
 void ObstacleDetector::balayerNiveauBas() {
     unsigned long now = millis();
     
-    // ✅ CORRECTION : Throttle pour le servo (éviter mouvements trop rapides)
+    
+    // Throttle pour le servo (éviter mouvements trop rapides)
     if (now - lastServoMoveTime < OBSTACLE_SERVO_DELAY) {
         return;
     }
@@ -518,21 +527,17 @@ void ObstacleDetector::balayerNiveauBas() {
         directionDroite = true;
     }
 
-    // ✅ CORRECTION : Pas de attach/detach, juste write
     servoMoteur.write(angleActuel);
 
     int distance = mesureDistanceFiltre(OBSTACLE_TRIG_LOW, OBSTACLE_ECHO_LOW,
                                         bufferBas, &indexBufferBas);
 
-    // Mesure invalide
     if (distance <= 0 || distance >= 900) {
-        // ✅ CORRECTION : Ne pas réinitialiser immédiatement
         return;
     }
 
     // Variation excessive
     if (distPrecedenteBas != -1 && abs(distance - distPrecedenteBas) > 150) {
-        // ✅ CORRECTION : On ignore cette mesure
         return;
     }
 
@@ -550,9 +555,9 @@ void ObstacleDetector::balayerNiveauBas() {
     currentDistanceBas = distance;
     lastMeasureTimeBas = millis();
 
-    // String dir = (angleActuel < 60) ? "GAUCHE" :
-    //              (angleActuel > 120) ? "DROITE" : "CENTRE";
-    // String category = getDistanceCategory(distance);
+    String dir = (angleActuel < 60) ? "GAUCHE" :
+                 (angleActuel > 120) ? "DROITE" : "CENTRE";
+    String category = getDistanceCategory(distance);
     
     Logger::info("🔍 [BAS] Angle=" + String(angleActuel) + "° Distance=" + 
                  String(distance) + "cm [" + dir + " / " + category + "]");
@@ -593,7 +598,7 @@ void ObstacleDetector::verifierEau() {
 int ObstacleDetector::lireNiveauEau() {
     waterRawValue = analogRead(WATER_SENSOR_PIN);
     
-    // ✅ CORRECTION : Buffer statique au lieu de stack
+    // Buffer statique au lieu de stack
     static int readings[5] = {0, 0, 0, 0, 0};
     static int index = 0;
     
@@ -612,13 +617,13 @@ int ObstacleDetector::lireNiveauEau() {
 }
 
 // =======================================================
-// ✅ CORRECTION : ALERTER EAU - NON-BLOQUANT
+// ALERTER EAU - NON-BLOQUANT
 // =======================================================
 void ObstacleDetector::alerterEau(int niveau) {
     if (niveau > WATER_THRESHOLD_HIGH) {
         Logger::warn("🔊 [EAU] Alerte NIVEAU ÉLEVÉ (2 bips)");
         
-        // ✅ CORRECTION : Démarre la machine à états non-bloquante
+        // Démarre la machine à états non-bloquante
         digitalWrite(BUZZER_2_PIN, HIGH);
         waterAlertState = WATER_ALERT_BIP1_ON;
         waterAlertLastChange = millis();
@@ -628,9 +633,9 @@ void ObstacleDetector::alerterEau(int niveau) {
     } else if (niveau > WATER_THRESHOLD_LOW) {
         Logger::info("🔊 [EAU] Alerte niveau moyen (1 bip)");
         
-        // ✅ CORRECTION : Un seul bip court
+        // Un seul bip court
         digitalWrite(BUZZER_2_PIN, HIGH);
-        waterAlertState = WATER_ALERT_BIP1_ON;
+        waterAlertState = WATER_ALERT_SINGLE_BIP;
         waterAlertLastChange = millis();
         
 
@@ -638,7 +643,7 @@ void ObstacleDetector::alerterEau(int niveau) {
 }
 
 // =======================================================
-// ✅ CORRECTION : MESURE DISTANCE - TIMEOUT RÉDUIT
+// MESURE DISTANCE - TIMEOUT RÉDUIT
 // =======================================================
 int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
     digitalWrite(trigPin, LOW);
@@ -647,7 +652,7 @@ int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
 
-    // ✅ CORRECTION : Timeout réduit à 30ms (au lieu de 50ms)
+    // Timeout réduit à 30ms (au lieu de 50ms)
     // 30ms = ~5m de portée max (suffisant pour une canne)
     long duration = pulseIn(echoPin, HIGH, 30000);
     
@@ -665,17 +670,11 @@ int ObstacleDetector::mesureDistance(int trigPin, int echoPin) {
 }
 
 // =======================================================
-// ✅ CORRECTION : FILTRAGE MÉDIAN AMÉLIORÉ
-// =======================================================
-// =======================================================
-// ⚠️ MODIFIÉ : FILTRAGE AMÉLIORÉ - 2 MESURES + 50MS
-// =======================================================
-// =======================================================
-// ⚠️ OPTIMISÉ : FILTRAGE RAPIDE - 2 MESURES + 10MS
+// FILTRAGE MÉDIAN AMÉLIORÉ
 // =======================================================
 int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
                                            int* buffer, int* index) {
-    // ⚠️ MODIFIÉ : 2 mesures au lieu de 3
+    // 2 mesures au lieu de 3
     int readings[2];
     for (int i = 0; i < 2; i++) {
         readings[i] = mesureDistance(trigPin, echoPin);
@@ -692,7 +691,7 @@ int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
         }
     }
     
-    // ✅ CORRECTION : Si invalide, on garde l'ancien buffer
+    // Si invalide, on garde l'ancien buffer
     if (validCount == 0) {
         // Ne pas vider le buffer, juste retourner -1
         return -1;
@@ -700,7 +699,7 @@ int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
     
     int avgDistance = (readings[0] + readings[1]) / 2;
     
-    // ⚠️ RÉDUIT : Écart max 30cm → 50cm (plus permissif)
+    // Écart max 30cm → 50cm (plus permissif)
     int ecart = abs(readings[0] - readings[1]);
     if (ecart > 50) {
         return -1;
@@ -710,34 +709,40 @@ int ObstacleDetector::mesureDistanceFiltre(int trigPin, int echoPin,
     buffer[*index] = avgDistance;
     *index = (*index + 1) % OBSTACLE_BUFFER_SIZE;
     
-    // ⚠️ SIMPLIFICATION : Pas de médiane, juste moyenne des valeurs valides
-    int sum = 0;
+    // Algorithme de tri fonctionnel
+    // 1. Copier le buffer dans un tableau temporaire pour le trier
+    int sorted[OBSTACLE_BUFFER_SIZE];
     int count = 0;
     
     for (int i = 0; i < OBSTACLE_BUFFER_SIZE; i++) {
+        // On ne prend que les valeurs valides pour la médiane
         if (buffer[i] > 0 && buffer[i] < 400) {
-            sum += buffer[i];
+            sorted[count] = buffer[i];
             count++;
         }
     }
     
+    // Si pas assez de données valides
     if (count == 0) {
         return -1;
     }
     
-    // Tri
-    for (int i = 0; i < OBSTACLE_BUFFER_SIZE - 1; i++)
-        for (int j = 0; j < OBSTACLE_BUFFER_SIZE - i - 1; j++)
-            if (sorted[j] > sorted[j + 1])
-                std::swap(sorted[j], sorted[j + 1]);
-    
-    int median = sorted[OBSTACLE_BUFFER_SIZE / 2];
-    
-    if (moyenne <= 0 || moyenne > 900) {
-        return -1;
+    // 2. Tri à bulles (Bubble Sort) - simple et efficace pour n=3 ou 5
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = 0; j < count - i - 1; j++) {
+            if (sorted[j] > sorted[j + 1]) {
+                // Swap
+                int temp = sorted[j];
+                sorted[j] = sorted[j + 1];
+                sorted[j + 1] = temp;
+            }
+        }
     }
     
-    return moyenne;
+    // 3. Médiane
+    int mediane = sorted[count / 2];
+    
+    return mediane;
 }
 
 // =======================================================

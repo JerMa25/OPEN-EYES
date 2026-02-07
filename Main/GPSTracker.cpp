@@ -42,8 +42,13 @@ bool GPSTracker::isReady() const {
 
 // Met à jour les données GPS
 void GPSTracker::update() {
-    // Lit et parse les données GPS
-    readGPS();
+    unsigned long currentTime = millis();
+    
+    if (currentTime - lastGPSRead >= GPS_READ_INTERVAL) {
+        // Lit et parse les données GPS
+        readGPS();
+        lastGPSRead = currentTime;
+    }
 }
 
 // Lit et parse les données GPS complètes du module SIM808
@@ -145,9 +150,13 @@ String GPSTracker::readResponse() {
     unsigned long t = millis();
     
     // Lit pendant 2 secondes maximum
-    while (millis() - t < 2000) {
+    while (millis() - t < 500) {
         while (sim808.available()) {
             r += sim808.readString();
+        }
+
+        if (r.indexOf("OK") >= 0 || r.indexOf("ERROR") >= 0 || r.indexOf("\r\n") >= 0) {
+            break;
         }
     }
     return r;

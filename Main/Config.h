@@ -8,15 +8,14 @@
 // ===== PINS DU MODULE SIM808 =====
 #define SIM808_RX         17
 #define SIM808_TX         16
-#define SIM808_PWR        25
+#define SIM808_PWR        4
   
 // ===== BOUTONS =====
 #define BOUTON_SOS        13
-#define BOUTON_ONOFF      12
 
 // ===== LEDS =====
-#define LED_POWER         14
-#define LED_STATUS        27
+#define LED_POWER         27
+#define LED_STATUS        14
 
 // ===== PARAMÈTRES GPS =====
 #define GPS_UPDATE_INTERVAL   5000
@@ -50,15 +49,15 @@
 // ============================================================
 // ===== OBSTACLE DETECTOR - PINS =====
 // ============================================================
-#define OBSTACLE_TRIG_HIGH    19
-#define OBSTACLE_ECHO_HIGH    21
-#define OBSTACLE_TRIG_LOW     5
-#define OBSTACLE_ECHO_LOW     18
-#define OBSTACLE_SERVO_PIN    23
+#define OBSTACLE_TRIG_HIGH    5
+#define OBSTACLE_ECHO_HIGH    18
+#define OBSTACLE_TRIG_LOW     19
+#define OBSTACLE_ECHO_LOW     0
+#define OBSTACLE_SERVO_PIN    2
 
 // ===== BUZZERS =====
-#define BUZZER_1_PIN          4
-#define BUZZER_2_PIN          26
+#define BUZZER_1_PIN          26
+#define BUZZER_2_PIN          25
 #define OBSTACLE_VIBRATOR_PIN 15
 #define WATER_SENSOR_PIN      34
 
@@ -146,6 +145,6 @@
 #define REG_ACCEL 0x3B
 #define REG_PWR   0x6B
 #define MPU_SCL_PIN 22
-#define MPU_SDA_PIN 35
+#define MPU_SDA_PIN 21
 
 #endif

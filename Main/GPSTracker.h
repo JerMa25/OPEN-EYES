@@ -40,7 +40,9 @@ class GPSTracker : public IModule {
     HardwareSerial& sim808;    // Référence au port série du SIM808
     GPSData gpsData;            // Données GPS complètes
     bool ready = false;         // État de préparation du GPS
-  
+    unsigned long lastGPSRead = 0; // Dernier check GPS
+    const unsigned long GPS_READ_INTERVAL = 10000; // Intervalle entre chaque check GPS
+
     bool readGPS();                      // Lit les données GPS du module
     void parseGPSInfo(const String& response);  // Parse la réponse GPS complète
     void sendAT(const String& cmd);      // Envoie une commande AT au module

@@ -4,8 +4,15 @@
 #include "BluetoothManager.h"
 #include "Config.h"
 
+
 // Constructeur
 BluetoothManager::BluetoothManager(GPSTracker& gpsTracker) : gps(gpsTracker) {}
+
+// ✅ AJOUTER : Méthode pour lier GPSAssistance
+void BluetoothManager::setIMUReference(GPSAssistance* imuRef) {
+    imu = imuRef;
+    Logger::info("✅ [BLE] Référence IMU configurée");
+}
 
 // Initialise le module BLE de l'ESP32
 void BluetoothManager::init() {
@@ -114,6 +121,7 @@ void BluetoothManager::update() {
         // Envoie toutes les GPS_UPDATE_INTERVAL millisecondes (5 secondes par défaut)
         if (currentTime - lastSendTime >= GPS_UPDATE_INTERVAL) {
             sendGPSData();
+            sendIMUDataAuto();
             lastSendTime = currentTime;
         }
     }
@@ -190,6 +198,23 @@ void BluetoothManager::sendObstacleData(const ObstacleData& data) {
     
     Logger::info("Obstacles envoyés via BLE: Upper=" + String(data.upper) + 
                  " Lower=" + String(data.lower));
+}
+
+// ✅ AJOUTER : Nouvelle méthode qui récupère ET envoie IMU automatiquement
+void BluetoothManager::sendIMUDataAuto() {
+    if (!deviceConnected) return;
+    
+    // Vérifier que la référence IMU existe
+    if (imu == nullptr) {
+        Logger::warn("⚠️ [BLE] Référence IMU non configurée");
+        return;
+    }
+    
+    // ✅ RÉCUPÈRE les données IMU automatiquement (comme sendGPSData)
+    IMUData imuData = imu->getIMUData();
+    
+    // Appelle la fonction d'envoi existante
+    sendImuData(imuData);
 }
 
 // Envoie les données IMU (orientation) via BLE
