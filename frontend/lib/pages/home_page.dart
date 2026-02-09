@@ -2,9 +2,10 @@
 
 import 'package:flutter/material.dart';
 import '../model/destination.dart';
-import '../services/destination_service.dart';
-import '../outil/destination/destination_card.dart';
+//import '../services/location_service.dart';
+import '../widgets/destination/destination_card.dart';
 import '../../ui/destination_style.dart';
+import '../services/position_service.dart';
 import '../config.dart';
 
 class HomePage extends StatefulWidget {

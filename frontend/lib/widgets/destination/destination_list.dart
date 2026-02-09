@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../model/destination.dart';
-import '../../services/destination_service.dart';
 import 'destination_card.dart';
+import '../../services/position_service.dart';
+
 
 class DestinationListWidget extends StatefulWidget {
   const DestinationListWidget({super.key});

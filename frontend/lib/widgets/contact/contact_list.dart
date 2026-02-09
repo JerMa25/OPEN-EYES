@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../model/contact.dart';
 import '../../services/contact_service.dart';
-import './add_contact.dart';
-import './contact_card.dart';
-import './delete_confirmation.dart';
-import './option_contact_dialog.dart';
+import 'add_contact_dialog.dart';
+import 'contact_card.dart';
+import 'delete_confirmation_dialog.dart';
+import 'contact_options_dialog.dart';
 
 class ContactListWidget extends StatefulWidget {
   final int canneId; // ✅ AJOUTÉ : numéro de la canne

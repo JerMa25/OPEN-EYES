@@ -33,9 +33,15 @@ dependencies:
 
     
   flutter_blue_plus: ^1.31.0
-  http: ^1.2.0
+  #http: ^1.2.0
   flutter_sms: ^2.3.3           # ✅ Package SMS
   permission_handler: ^11.3.1 
+  dio: ^5.4.0           # HTTP client amélioré
+  geolocator: ^14.0.0   # Géolocalisation
+  geocoding: ^3.0.0     # Adresses ↔ Coordonnées
+  provider: ^6.1.1      # State management
+  intl: ^0.19.0         # Formatage dates
+  connectivity_plus: ^5.0.2  # Vérification connexion
 
 
   # The following adds the Cupertino Icons font to your application.

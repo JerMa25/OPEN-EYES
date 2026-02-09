@@ -1,6 +1,8 @@
+// lib/widgets/contact/contact_options_dialog.dart
 
 import 'package:flutter/material.dart';
 
+/// Dialogue avec les options pour un contact (modifier/supprimer)
 class ContactOptionsDialog extends StatelessWidget {
   const ContactOptionsDialog({super.key});
 
@@ -32,8 +34,16 @@ class ContactOptionsDialog extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              subtitle: Text(
+                'Modifier les informations',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                ),
+              ),
               onTap: () => Navigator.pop(context, 'update'),
             ),
+            
             const Divider(height: 1),
             
             // Option Supprimer
@@ -52,6 +62,13 @@ class ContactOptionsDialog extends StatelessWidget {
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Colors.red,
+                ),
+              ),
+              subtitle: Text(
+                'Retirer de la liste',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
                 ),
               ),
               onTap: () => Navigator.pop(context, 'delete'),
