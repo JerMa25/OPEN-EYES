@@ -3,8 +3,7 @@
 #include <math.h>
 #include "Config.h"
 
-GPSAssistance::GPSAssistance(BluetoothManager& bt)
-: bluetooth(bt) {}
+GPSAssistance::GPSAssistance() {}
 
 void GPSAssistance::init() {
     Logger::info("========================================");
@@ -57,22 +56,8 @@ void GPSAssistance::update() {
 
     readIMU();
 
-    // ✅ AJOUTER : Throttling BLE
-    unsigned long currentTime = millis();
-    if (currentTime - lastBLESend >= 200) {
-        IMUData data;
-        data.yaw   = imuData.yaw;
-        data.pitch = imuData.pitch;
-        data.roll  = imuData.roll;
-
-        bluetooth.sendImuData(data);  // ✅ AJOUTER
-        
-        lastBLESend = currentTime;
-        
-        Logger::info("🧭 [IMU] Yaw=" + String(data.yaw, 1) + 
-                     "° Pitch=" + String(data.pitch, 1) + 
-                     "° Roll=" + String(data.roll, 1) + "°");
-    }
+    // ✅ Les données IMU sont maintenant envoyées par BluetoothManager::update()
+    // Plus besoin d'envoi direct ici
 }
 
 void GPSAssistance::readIMU() {

@@ -12,6 +12,7 @@
 #include "IModule.h"
 #include "Logger.h"
 #include "GPSTracker.h"
+#include "GPSAssistance.h"
 
 // UUID pour le service principal de la canne
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
@@ -22,7 +23,7 @@
 #define OBSTACLE_CHARACTERISTIC_UUID    "beb5483e-36e1-4688-b7f5-ea07361b26aa"
 #define IMU_CHARACTERISTIC_UUID         "beb5483e-36e1-4688-b7f5-ea07361b26ab"
 
-class GPSAssistance;
+
 // Structures pour les données des futurs modules
 struct WaterSensorData {
     float humidityLevel = 0.0;
@@ -35,17 +36,13 @@ struct ObstacleData {
     int servoAngle = 0;
 };
 
-struct IMUData {
-    float yaw = 0.0;
-    float pitch = 0.0;
-    float roll = 0.0;
-};
+
 
 // Classe pour gérer le Bluetooth BLE de l'ESP32
 class BluetoothManager : public IModule {
   public:
-    // Constructeur prenant le tracker GPS
-    BluetoothManager(GPSTracker& gpsTracker);
+    // Constructeur prenant le tracker GPS et l'IMU
+    BluetoothManager(GPSTracker& gpsTracker, GPSAssistance& imuRef);
 
     // Méthodes héritées de IModule
     void init() override;           // Initialise le BLE
@@ -70,6 +67,7 @@ class BluetoothManager : public IModule {
 
   private:
     GPSTracker& gps;                      // Référence au tracker GPS
+    GPSAssistance& imu;                   // Référence au module IMU
     
     // Objets BLE
     BLEServer* pServer = nullptr;                          // Serveur BLE
@@ -82,7 +80,8 @@ class BluetoothManager : public IModule {
     bool ready = false;                   // BLE prêt
     bool deviceConnected = false;         // Client connecté
     bool autoSend = true;                 // Envoi automatique activé
-    unsigned long lastSendTime = 0;       // Dernier envoi de données
+    unsigned long lastSendTime = 0;       // Dernier envoi GPS
+    unsigned long lastImuTime = 0;        // Dernier envoi IMU
     String deviceName = "Canne_Intelligente"; // Nom par défaut
     
     // Classe interne pour gérer les callbacks de connexion

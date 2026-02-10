@@ -17,8 +17,9 @@
 #define LED_POWER         27
 #define LED_STATUS        14
 
-// ===== PARAMÈTRES GPS =====
+// PARAMÈTRES GPS ET IMU
 #define GPS_UPDATE_INTERVAL   5000
+#define IMU_UPDATE_INTERVAL   200   // Envoi plus fréquent pour l'orientation (200ms)
 #define GPS_TIMEOUT           30000
 #define DELAI_ENTRE_SMS       60000
 

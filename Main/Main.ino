@@ -17,9 +17,9 @@ HardwareSerial SIM808(2);
 GPSTracker gps(SIM808);
 GSMEmergency gsm(SIM808, gps);
 ObstacleDetector detector;
-BluetoothManager bluetooth(gps);
-GPSAssistance imu(bluetooth); 
-IModule* modules[] = { &gps, &gsm, &detector, &bluetooth, &imu};
+GPSAssistance imu;
+BluetoothManager bluetooth(gps, imu);
+IModule* modules[] = { &gps, &gsm, &detector, &imu, &bluetooth};
 
 // ===== BOUTON SOS =====
 bool boutonPrecedent = HIGH;
@@ -159,8 +159,7 @@ void setup() {
     digitalWrite(BUZZER_2_PIN, LOW);
     Logger::info("✅ [SETUP] Buzzers configurés");
 
-    // ===== LIER IMU AU BLUETOOTH =====
-    bluetooth.setIMUReference(&imu);
+
 
     // ===== INIT MODULES =====
     Logger::info("");

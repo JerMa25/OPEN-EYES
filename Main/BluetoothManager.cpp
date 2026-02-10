@@ -3,16 +3,14 @@
 // ============================================
 #include "BluetoothManager.h"
 #include "Config.h"
+#include "GPSAssistance.h"  // ✅ AJOUTER : Include complet pour accéder à getIMUData()
 
 
 // Constructeur
-BluetoothManager::BluetoothManager(GPSTracker& gpsTracker) : gps(gpsTracker) {}
+BluetoothManager::BluetoothManager(GPSTracker& gpsTracker, GPSAssistance& imuRef) 
+    : gps(gpsTracker), imu(imuRef) {}
 
-// ✅ AJOUTER : Méthode pour lier GPSAssistance
-void BluetoothManager::setIMUReference(GPSAssistance* imuRef) {
-    imu = imuRef;
-    Logger::info("✅ [BLE] Référence IMU configurée");
-}
+
 
 // Initialise le module BLE de l'ESP32
 void BluetoothManager::init() {
@@ -114,15 +112,20 @@ void BluetoothManager::update() {
     // Vérifie si le BLE est prêt et un client est connecté
     if (!ready || !deviceConnected) return;
     
-    // Envoie automatique des données GPS si activé
+    // Envoie automatique des données si activé
     if (autoSend) {
         unsigned long currentTime = millis();
         
-        // Envoie toutes les GPS_UPDATE_INTERVAL millisecondes (5 secondes par défaut)
+        // 1. Envoie GPS toutes les 5 secondes
         if (currentTime - lastSendTime >= GPS_UPDATE_INTERVAL) {
             sendGPSData();
-            sendIMUDataAuto();
             lastSendTime = currentTime;
+        }
+
+        // 2. Envoie IMU toutes les 200 ms (plus fréquent pour l'orientation)
+        if (currentTime - lastImuTime >= IMU_UPDATE_INTERVAL) {
+            sendIMUDataAuto();
+            lastImuTime = currentTime;
         }
     }
 }
@@ -200,18 +203,12 @@ void BluetoothManager::sendObstacleData(const ObstacleData& data) {
                  " Lower=" + String(data.lower));
 }
 
-// ✅ AJOUTER : Nouvelle méthode qui récupère ET envoie IMU automatiquement
+// ✅ Récupère les données IMU et les envoie automatiquement (comme sendGPSData)
 void BluetoothManager::sendIMUDataAuto() {
     if (!deviceConnected) return;
     
-    // Vérifier que la référence IMU existe
-    if (imu == nullptr) {
-        Logger::warn("⚠️ [BLE] Référence IMU non configurée");
-        return;
-    }
-    
-    // ✅ RÉCUPÈRE les données IMU automatiquement (comme sendGPSData)
-    IMUData imuData = imu->getIMUData();
+    // ✅ Récupère les données IMU automatiquement
+    IMUData imuData = imu.getIMUData();
     
     // Appelle la fonction d'envoi existante
     sendImuData(imuData);

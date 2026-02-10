@@ -4,11 +4,17 @@
 #include <Arduino.h>
 #include "IModule.h"
 #include "Logger.h"
-#include "BluetoothManager.h"
+
+// Structure IMUData (précédemment dans BluetoothManager.h)
+struct IMUData {
+    float yaw = 0.0;
+    float pitch = 0.0;
+    float roll = 0.0;
+};
 
 class GPSAssistance : public IModule {
   public:
-    GPSAssistance(BluetoothManager& bt);
+    GPSAssistance();  // ✅ Plus besoin de BluetoothManager
 
     void init() override;
     void update() override;
@@ -18,15 +24,13 @@ class GPSAssistance : public IModule {
     IMUData getIMUData() const;
 
   private:
-    BluetoothManager& bluetooth;
     IMUData imuData;
     bool ready = false;
-    unsigned long lastBLESend = 0;  // ✅ AJOUTER
 
     void initMPU();
-    void initMagnetometer();  // ✅ AJOUTER
+    void initMagnetometer();
     void readIMU();
-    void readMagnetometer();  // ✅ AJOUTER
+    void readMagnetometer();
 };
 
 #endif
