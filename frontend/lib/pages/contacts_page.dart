@@ -1,4 +1,5 @@
 // lib/pages/contacts_page.dart
+// VERSION MISE À JOUR - Gère les résultats SMS
 
 import 'package:flutter/material.dart';
 import '../model/contact.dart';
@@ -25,7 +26,26 @@ class _ContactsPageState extends State<ContactsPage> {
   @override
   void initState() {
     super.initState();
+    _checkPermissions();
     _loadContacts();
+  }
+
+  Future<void> _checkPermissions() async {
+    final hasPerms = await _contactService.hasSmsPermissions();
+    if (!hasPerms) {
+      final granted = await _contactService.requestSmsPermission();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(granted 
+              ? '✅ Permissions SMS accordées' 
+              : '⚠️ Permissions SMS refusées - Les SMS ne pourront pas être envoyés'),
+            backgroundColor: granted ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   void _loadContacts() {
@@ -53,25 +73,82 @@ class _ContactsPageState extends State<ContactsPage> {
     );
 
     if (newContact != null && mounted) {
+      // Afficher un indicateur de chargement
+      _showLoadingDialog('Enregistrement du contact...');
+
       try {
-        await _contactService.registerContact(contact: newContact);
+        final result = await _contactService.registerContact(newContact);
         
         if (!mounted) return;
+        Navigator.pop(context); // Fermer le loading dialog
+
         _loadContacts();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${newContact.fullName} ajouté avec succès'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        // Afficher le résultat
+        _showResultSnackBar(result);
       } catch (e) {
         if (!mounted) return;
+        Navigator.pop(context); // Fermer le loading dialog
         _showErrorSnackBar('Erreur: $e');
       }
     }
+  }
+
+  void _showResultSnackBar(RegistrationResult result) {
+    final Color backgroundColor;
+    final String message;
+    final IconData icon;
+
+    if (result.backendOk && (result.smsResult?.success ?? false)) {
+      backgroundColor = Colors.green;
+      message = '${result.contact.fullName} ajouté ✓\nSMS envoyé à la canne';
+      icon = Icons.check_circle;
+    } else if (result.backendOk && (result.smsResult?.requiresUserAction ?? false)) {
+      backgroundColor = Colors.orange;
+      message = '${result.contact.fullName} ajouté ✓\nVeuillez envoyer le SMS manuellement';
+      icon = Icons.warning;
+    } else if (result.backendOk) {
+      backgroundColor = Colors.blue;
+      message = '${result.contact.fullName} ajouté ✓\nSMS: ${result.smsResult?.error ?? "en attente"}';
+      icon = Icons.info;
+    } else {
+      backgroundColor = Colors.red;
+      message = 'Erreur lors de l\'ajout';
+      icon = Icons.error;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showLoadingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(message),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showContactOptions(Contact contact) async {
@@ -86,6 +163,34 @@ class _ContactsPageState extends State<ContactsPage> {
       _showDeleteConfirmation(contact);
     } else if (action == 'update') {
       _showUpdateContactDialog(contact);
+    } else if (action == 'set_urgence') {
+      _setAsUrgenceContact(contact);
+    }
+  }
+
+  void _setAsUrgenceContact(Contact contact) async {
+    _showLoadingDialog('Configuration du contact d\'urgence...');
+
+    try {
+      final result = await _contactService.definirUrgence(
+        contact.telephone,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.success
+            ? '✅ ${contact.fullName} défini comme contact d\'urgence'
+            : '⚠️ Erreur: ${result.error}'),
+          backgroundColor: result.success ? Colors.green : Colors.orange,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showErrorSnackBar('Erreur: $e');
     }
   }
 
@@ -96,29 +201,35 @@ class _ContactsPageState extends State<ContactsPage> {
     );
 
     if (confirmed == true && mounted) {
+      _showLoadingDialog('Suppression du contact...');
+
       try {
         if (contact.id == null) {
           throw Exception('Contact sans ID');
         }
 
-        await _contactService.deleteContact(
-          contactId: contact.id!,
-          telephone: contact.telephone,
+        final result = await _contactService.deleteContact(
+          contact.id!,
+          contact.telephone,
         );
 
         if (!mounted) return;
+        Navigator.pop(context);
         _loadContacts();
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${contact.fullName} supprimé'),
-            backgroundColor: Colors.red,
+            content: Text(result.smsResult?.success == true
+              ? '${contact.fullName} supprimé ✓'
+              : '${contact.fullName} supprimé (SMS: ${result.smsResult?.error ?? "en attente"})'),
+            backgroundColor: result.backendOk ? Colors.green : Colors.orange,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       } catch (e) {
         if (!mounted) return;
+        Navigator.pop(context);
         _showErrorSnackBar('Erreur: $e');
       }
     }
@@ -134,25 +245,73 @@ class _ContactsPageState extends State<ContactsPage> {
     );
 
     if (updatedContact != null && mounted) {
+      _showLoadingDialog('Mise à jour du contact...');
+
       try {
-        await _contactService.updateContactByTelephone(
-          ancienTelephone: contact.telephone,
-          updatedContact: updatedContact,
-        );
+        final result = await _contactService.updateContact(contact.telephone, updatedContact);
+        if (!mounted) return;
+        Navigator.pop(context);
+        _loadContacts();
+
+        _showResultSnackBar(result);
+      } catch (e) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        _showErrorSnackBar('Erreur: $e');
+      }
+    }
+  }
+
+  void _showSyncDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.sync, color: Colors.blue),
+            SizedBox(width: 12),
+            Text('Synchroniser'),
+          ],
+        ),
+        content: const Text(
+          'Voulez-vous synchroniser tous les contacts vers la SIM de la canne?\n\n'
+          'Cela va effacer les contacts existants dans la canne et les remplacer par ceux de l\'application.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('Synchroniser', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      _showLoadingDialog('Synchronisation en cours...');
+
+      try {
+        final result = await _contactService.syncAllContacts();
 
         if (!mounted) return;
-        _loadContacts();
+        Navigator.pop(context);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${updatedContact.fullName} mis à jour'),
-            backgroundColor: Colors.blue,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            content: Text(
+              'Synchronisation terminée: ${result.success}/${result.total} contacts',
+            ),
+            backgroundColor: result.complete ? Colors.green : Colors.orange,
           ),
         );
       } catch (e) {
         if (!mounted) return;
+        Navigator.pop(context);
         _showErrorSnackBar('Erreur: $e');
       }
     }
@@ -161,7 +320,13 @@ class _ContactsPageState extends State<ContactsPage> {
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -213,6 +378,13 @@ class _ContactsPageState extends State<ContactsPage> {
           ),
           Row(
             children: [
+              // Bouton Sync
+              IconButton(
+                icon: const Icon(Icons.sync, color: Colors.orange),
+                onPressed: _showSyncDialog,
+                tooltip: 'Synchroniser avec la canne',
+              ),
+              // Bouton Refresh
               if (_isRefreshing)
                 const SizedBox(
                   width: 24,
@@ -224,8 +396,9 @@ class _ContactsPageState extends State<ContactsPage> {
                   icon: const Icon(Icons.refresh, color: Colors.blue),
                   onPressed: _refreshContacts,
                 ),
+              // Bouton Ajouter
               IconButton(
-                icon: const Icon(Icons.add_circle, color: Colors.blue, size: 32),
+                icon: const Icon(Icons.add_circle, color: Colors.green, size: 32),
                 onPressed: _showAddContactDialog,
               ),
             ],

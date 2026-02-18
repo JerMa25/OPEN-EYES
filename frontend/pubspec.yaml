@@ -32,16 +32,17 @@ dependencies:
     sdk: flutter
 
     
-  flutter_blue_plus: ^1.31.0
+  flutter_blue_plus: ^1.36.8
   #http: ^1.2.0
-  flutter_sms: ^2.3.3           # ✅ Package SMS
-  permission_handler: ^11.3.1 
+  url_launcher: ^6.2.5           # ✅ Package SMS
+  permission_handler: ^11.4.0 
   dio: ^5.4.0           # HTTP client amélioré
   geolocator: ^14.0.0   # Géolocalisation
   geocoding: ^3.0.0     # Adresses ↔ Coordonnées
   provider: ^6.1.1      # State management
   intl: ^0.19.0         # Formatage dates
   connectivity_plus: ^5.0.2  # Vérification connexion
+  shared_preferences: ^2.2.2
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -51,7 +52,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^3.0.2
 
 
   # The "flutter_lints" package below contains a set of recommended lints to

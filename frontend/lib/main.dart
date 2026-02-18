@@ -2,12 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'pages/home_page.dart';
 import 'pages/contacts_page.dart';
 import 'pages/messages_page.dart';
 import 'config.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Configuration de la barre de statut
@@ -21,7 +22,26 @@ void main() {
   // Afficher la configuration au démarrage
   AppConfig.debugPrintConfig();
   
+  // Demander les permissions SMS au démarrage
+  await _requestSmsPermissions();
+  
   runApp(const CanneApp());
+}
+
+/// Demande les permissions SMS nécessaires
+Future<void> _requestSmsPermissions() async {
+  try {
+    final status = await Permission.sms.request();
+    if (status.isGranted) {
+      debugPrint('✅ Permissions SMS accordées');
+    } else if (status.isDenied) {
+      debugPrint('⚠️ Permissions SMS refusées');
+    } else if (status.isPermanentlyDenied) {
+      debugPrint('❌ Permissions SMS définitivement refusées - ouvrir les paramètres');
+    }
+  } catch (e) {
+    debugPrint('❌ Erreur lors de la demande de permissions SMS: $e');
+  }
 }
 
 

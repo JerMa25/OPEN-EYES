@@ -157,9 +157,8 @@ class _ContactListWidgetState extends State<ContactListWidget> {
 
           if (updatedContact != null && mounted) {
             try {
-              await service.updateContactByTelephone(
-                ancienTelephone: contact.telephone,
-                updatedContact: updatedContact,
+              await service.updateContact(
+                contact.telephone, updatedContact
               );
               
               if (mounted) {
@@ -191,8 +190,7 @@ class _ContactListWidgetState extends State<ContactListWidget> {
           if (confirm == true && mounted) {
             try {
               await service.deleteContact(
-                contactId: contact.id!,
-                telephone: contact.telephone,
+               contact.id!, contact.telephone
               );
               
               if (mounted) {

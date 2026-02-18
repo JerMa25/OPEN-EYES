@@ -99,4 +99,28 @@ class Contact {
 
   @override
   int get hashCode => id.hashCode ^ telephone.hashCode;
+
+  String buildAddCommand({required String pin}) {
+  final safeName = fullName
+      .replaceAll(':', ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  final safePhone = _normaliserTel(telephone);
+
+  return 'ADD:$pin:$safeName:$safePhone';
+}
+
+static String _normaliserTel(String tel) {
+  tel = tel.trim().replaceAll(' ', '').replaceAll('-', '');
+  if (tel.startsWith('+')) return tel;
+  if (tel.startsWith('237')) return '+$tel';
+  if (tel.length == 9 && (tel.startsWith('6') || tel.startsWith('2') || tel.startsWith('9'))) {
+    return '+237$tel';
+  }
+  // fallback
+  return '+$tel';
+}
+
+
 }

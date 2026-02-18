@@ -1,227 +1,281 @@
 // lib/services/contact_service.dart
+// Service Contact définitif - Cameroun
 
-import 'package:flutter_sms/flutter_sms.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../model/contact.dart';
 import '../config.dart';
 import 'api_client.dart';
 
-/// Service pour gérer les contacts
-/// Synchronise les contacts entre le backend Django et la SIM de la canne
 class ContactService {
   final ApiClient _api = ApiClient();
 
-  // Configuration
-  static int get canneId => AppConfig.canneId;
-  static String get cannePhone => AppConfig.cannePhoneString;
-  static String get cannePhoneDisplay => AppConfig.cannePhoneDisplay;
-  static String get role => AppConfig.defaultRole;
+  // ══════════════════════════════════════════════════════════════════════════
+  // 🔐 PERMISSIONS
+  // ══════════════════════════════════════════════════════════════════════════
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 📱 GESTION SMS
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /// Demande les permissions SMS
-  Future<bool> requestSmsPermissions() async {
-    final status = await Permission.sms.request();
-    return status.isGranted;
+  Future<bool> requestSmsPermission() async {
+  final sms = await Permission.sms.request();
+  final phone = await Permission.phone.request();
+  return sms.isGranted && phone.isGranted;
   }
 
-  /// Envoie une commande AT à la canne via SMS
-  Future<void> _sendAtCommandToCanne({required String command}) async {
-    try {
-      // Essayer d'abord sans le +
-      await sendSMS(
-        message: command,
-        recipients: [cannePhone],
-        sendDirect: true,
-      );
-      _log('✅ SMS envoyé à $cannePhone: $command');
-    } catch (e) {
-      _log('⚠️ Erreur envoi SMS sans +, tentative avec +');
-      
-      // Si ça échoue, réessayer avec le +
-      try {
-        await sendSMS(
-          message: command,
-          recipients: [cannePhoneDisplay],
-          sendDirect: true,
-        );
-        _log('✅ SMS envoyé à $cannePhoneDisplay: $command');
-      } catch (e2) {
-        _log('❌ Impossible d\'envoyer le SMS: $e2');
-        throw Exception('Impossible d\'envoyer le SMS: $e2');
-      }
+  Future<bool> hasSmsPermissions() async {
+  final sms = await Permission.sms.isGranted;
+  final phone = await Permission.phone.isGranted;
+  return sms && phone;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 📤 ENVOI SMS À LA CANNE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Envoie une commande SMS à la canne
+  Future<SmsResult> _envoyerCommande(String commande) async {
+  _log('📤 Commande: $commande');
+
+  if (!await hasSmsPermissions()) {
+    if (!await requestSmsPermission()) {
+      return SmsResult(success: false, error: 'Permission SMS refusée');
     }
   }
 
-  /// Ajoute un contact dans la SIM de la canne
-  Future<void> _addContactToSim({required Contact contact}) async {
-    final String nom = '${contact.prenom} ${contact.nom}';
-    final String commande = 'AT+CPBW=,"${contact.telephone}",129,"$nom"';
-    await _sendAtCommandToCanne(command: commande);
+  final uri = Uri(
+    scheme: 'sms',
+    path: AppConfig.cannePhoneDisplay,
+    queryParameters: {'body': commande},
+  );
+
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+    return SmsResult(
+      success: true,
+      requiresUserAction: true,
+      message: 'Appuyez sur Envoyer',
+    );
   }
 
-  /// Supprime un contact de la SIM de la canne
-  Future<void> _deleteContactFromSim({required String telephone}) async {
-    final String commande = 'DELETE_CONTACT:$telephone';
-    await _sendAtCommandToCanne(command: commande);
+  return SmsResult(success: false, error: 'Impossible d’ouvrir l’app SMS');
+}
+
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 📱 COMMANDES CANNE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Ajouter un contact dans la canne
+  Future<SmsResult> ajouterContactCanne(Contact contact) async {
+  final cmd = contact.buildAddCommand(pin: AppConfig.smsPin);
+  return await _envoyerCommande(cmd);
   }
 
-  /// Met à jour un contact dans la SIM
-  Future<void> _updateContactInSim({
-    required String ancienTelephone,
-    required Contact newContact,
-  }) async {
-    await _deleteContactFromSim(telephone: ancienTelephone);
-    await Future.delayed(const Duration(milliseconds: 500));
-    await _addContactToSim(contact: newContact);
+
+  /// Supprimer un contact de la canne
+  /// Format: DEL:PIN:+237XXXXXXXXX
+  Future<SmsResult> supprimerContactCanne(String telephone) async {
+    String tel = _normaliserTel(telephone);
+    String cmd = 'DEL:${AppConfig.smsPin}:$tel';
+    return await _envoyerCommande(cmd);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  /// Définir le contact d'urgence
+  /// Format: URG:PIN:+237XXXXXXXXX
+  Future<SmsResult> definirUrgence(String telephone) async {
+    String tel = _normaliserTel(telephone);
+    String cmd = 'URG:${AppConfig.smsPin}:$tel';
+    return await _envoyerCommande(cmd);
+  }
+
+  /// Lister les contacts de la canne
+  /// Format: LIST:PIN
+  Future<SmsResult> listerContactsCanne() async {
+    String cmd = 'LIST:${AppConfig.smsPin}';
+    return await _envoyerCommande(cmd);
+  }
+
+  /// Effacer tous les contacts de la canne
+  /// Format: CLEAR:PIN
+  Future<SmsResult> effacerContactsCanne() async {
+    String cmd = 'CLEAR:${AppConfig.smsPin}';
+    return await _envoyerCommande(cmd);
+  }
+
+  /// Tester l'envoi d'alerte
+  /// Format: TEST:PIN
+  Future<SmsResult> testerAlerte() async {
+    String cmd = 'TEST:${AppConfig.smsPin}';
+    return await _envoyerCommande(cmd);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // 📡 API BACKEND
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
 
-  /// Récupère tous les contacts de la canne
-  /// GET /api/contacts/{canne_id}/
+  /// Récupérer tous les contacts
   Future<List<Contact>> fetchAllContacts() async {
-    _log('📡 Fetching contacts for canne $canneId');
-
-    final response = await _api.get('/api/contacts/$canneId/');
-
+    _log('📡 Chargement contacts...');
+    final response = await _api.get('/api/contacts/${AppConfig.canneId}/');
     if (response.statusCode == 200) {
-      final List<dynamic> jsonList = response.data as List<dynamic>;
-      _log('✅ Parsed ${jsonList.length} contacts');
-      return jsonList.map((json) => Contact.fromJson(json)).toList();
+      final List<dynamic> data = response.data;
+      _log('✅ ${data.length} contacts');
+      return data.map((j) => Contact.fromJson(j)).toList();
     }
-
-    throw Exception('Erreur récupération contacts');
+    throw Exception('Erreur chargement');
   }
 
-  /// Enregistre un nouveau contact
-  /// POST /api/contacts/register-sms/{canne_id}/{role}/{telephone}/
-  Future<Contact> registerContact({required Contact contact}) async {
-    _log('📡 Registering contact: ${contact.fullName}');
+  /// Enregistrer un contact (backend + canne)
+  Future<RegistrationResult> registerContact(Contact contact) async {
+    _log('📡 Enregistrement: ${contact.fullName}');
 
-    // 1️⃣ Envoyer au backend
+    // 1. Backend
     final response = await _api.post(
-      '/api/contacts/register-sms/$canneId/$role/${contact.telephone}/',
+      '/api/contacts/register-sms/${AppConfig.canneId}/${AppConfig.defaultRole}/${contact.telephone}/',
       data: contact.toJson(),
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception('Erreur backend (${response.statusCode})');
+      throw Exception('Erreur backend');
     }
 
-    final savedContact = Contact.fromJson(response.data);
-    _log('✅ Contact sauvegardé dans le backend');
+    final id = response.data['id'] as int?;
+    final saved = contact.copyWith(id: id);
+    _log('✅ Backend OK (ID: $id)');
 
-    // 2️⃣ Envoyer le SMS à la canne
+    // 2. Canne
+    SmsResult? sms;
     try {
-      await _addContactToSim(contact: savedContact);
-      _log('✅ Contact ajouté dans la SIM');
+      sms = await ajouterContactCanne(saved);
     } catch (e) {
-      _log('⚠️ Contact sauvegardé backend mais erreur SIM: $e');
-      // On ne throw pas pour ne pas bloquer si le backend a réussi
+      _log('⚠️ SMS: $e');
+      sms = SmsResult(success: false, error: '$e');
     }
 
-    return savedContact;
+    return RegistrationResult(contact: saved, smsResult: sms);
   }
 
-  /// Met à jour un contact existant
-  /// PUT /api/contacts/{canne_id}/contacts/{ancien_telephone}/{role}/update/
-  Future<Contact> updateContactByTelephone({
-    required String ancienTelephone,
-    required Contact updatedContact,
-  }) async {
-    _log('📡 Updating contact: $ancienTelephone -> ${updatedContact.telephone}');
+  /// Mettre à jour un contact
+  Future<RegistrationResult> updateContact(String ancienTel, Contact contact) async {
+    _log('📡 Mise à jour: $ancienTel -> ${contact.telephone}');
 
     final response = await _api.put(
-      '/api/contacts/$canneId/contacts/$ancienTelephone/$role/update/',
-      data: updatedContact.toJson(),
+      '/api/contacts/${AppConfig.canneId}/contacts/$ancienTel/${AppConfig.defaultRole}/update/',
+      data: contact.toJson(),
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception('Erreur mise à jour backend (${response.statusCode})');
+      throw Exception('Erreur backend');
     }
 
-    final savedContact = Contact.fromJson(response.data);
-    _log('✅ Contact mis à jour dans le backend');
+    // Mettre à jour canne: supprimer ancien + ajouter nouveau
+    await supprimerContactCanne(ancienTel);
+    await Future.delayed(const Duration(seconds: 2));
+    final sms = await ajouterContactCanne(contact);
 
-    // Mettre à jour la SIM
-    try {
-      await _updateContactInSim(
-        ancienTelephone: ancienTelephone,
-        newContact: savedContact,
-      );
-      _log('✅ Contact mis à jour dans la SIM');
-    } catch (e) {
-      _log('⚠️ Mise à jour backend OK mais erreur SIM: $e');
-    }
-
-    return savedContact;
+    return RegistrationResult(contact: contact, smsResult: sms);
   }
 
-  /// Supprime un contact
-  /// POST /api/contacts/{canne_id}/contacts/{contact_id}/{role}/delete/
-  Future<void> deleteContact({
-    required int contactId,
-    required String telephone,
-  }) async {
-    _log('📡 Deleting contact: $contactId ($telephone)');
+  /// Supprimer un contact
+  Future<DeletionResult> deleteContact(int id, String telephone) async {
+    _log('📡 Suppression: $id');
 
     final response = await _api.post(
-      '/api/contacts/$canneId/contacts/$contactId/$role/delete/',
+      '/api/contacts/${AppConfig.canneId}/contacts/$id/${AppConfig.defaultRole}/delete/',
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception('Erreur suppression backend (${response.statusCode})');
+      throw Exception('Erreur backend');
     }
 
-    _log('✅ Contact supprimé du backend');
-
-    // Supprimer de la SIM
-    try {
-      await _deleteContactFromSim(telephone: telephone);
-      _log('✅ Contact supprimé de la SIM');
-    } catch (e) {
-      _log('⚠️ Suppression backend OK mais erreur SIM: $e');
-    }
+    final sms = await supprimerContactCanne(telephone);
+    return DeletionResult(backendOk: true, smsResult: sms);
   }
 
-  /// Synchronise tous les contacts vers la SIM
-  Future<void> syncAllContactsToSim() async {
-    _log('📡 Synchronizing all contacts to SIM');
+  /// Synchroniser tous les contacts vers la canne
+  Future<SyncResult> syncAllContacts() async {
+    _log('🔄 Synchronisation...');
+    
+    // Effacer la canne
+    await effacerContactsCanne();
+    await Future.delayed(const Duration(seconds: 3));
 
+    // Récupérer et envoyer
     final contacts = await fetchAllContacts();
+    int ok = 0;
 
-    // Vider la SIM d'abord
-    await _sendAtCommandToCanne(command: 'CLEAR_ALL_CONTACTS');
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Ajouter chaque contact
     for (var contact in contacts) {
-      try {
-        await _addContactToSim(contact: contact);
-        await Future.delayed(const Duration(milliseconds: 800));
-        _log('✅ Synced: ${contact.fullName}');
-      } catch (e) {
-        _log('⚠️ Erreur sync contact ${contact.nom}: $e');
-      }
+      final result = await ajouterContactCanne(contact);
+      if (result.success) ok++;
+      await Future.delayed(const Duration(seconds: 2));
     }
 
-    _log('✅ Synchronisation terminée');
+    return SyncResult(total: contacts.length, success: ok);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
   // 🔧 UTILITAIRES
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
 
-  void _log(String message) {
+  String _normaliserTel(String tel) {
+    tel = tel.trim().replaceAll(' ', '').replaceAll('-', '');
+    if (tel.startsWith('6') || tel.startsWith('2') || tel.startsWith('9')) {
+      return '+237$tel';
+    } else if (tel.startsWith('237')) {
+      return '+$tel';
+    } else if (!tel.startsWith('+')) {
+      return '+$tel';
+    }
+    return tel;
+  }
+
+  void _log(String msg) {
     if (AppConfig.enableDebugLogs) {
-      debugPrint('[ContactService] $message');
+      debugPrint('[ContactService] $msg');
     }
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 📦 CLASSES RÉSULTAT
+// ══════════════════════════════════════════════════════════════════════════════
+
+class SmsResult {
+  final bool success;
+  final String? error;
+  final String? message;
+  final bool requiresUserAction;
+
+  SmsResult({
+    required this.success,
+    this.error,
+    this.message,
+    this.requiresUserAction = false,
+  });
+}
+
+class RegistrationResult {
+  final Contact contact;
+  final SmsResult? smsResult;
+
+  RegistrationResult({required this.contact, this.smsResult});
+
+  bool get backendOk => contact.id != null;
+  bool get smsOk => smsResult?.success ?? false;
+}
+
+class DeletionResult {
+  final bool backendOk;
+  final SmsResult? smsResult;
+
+  DeletionResult({required this.backendOk, this.smsResult});
+}
+
+class SyncResult {
+  final int total;
+  final int success;
+
+  SyncResult({required this.total, required this.success});
+  
+  bool get complete => success == total;
 }
