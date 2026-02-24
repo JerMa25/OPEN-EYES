@@ -106,3 +106,29 @@ extension ContactUi on Contact {
     return 'Priorité basse';
   }
 }
+
+class PhoneCM {
+  // Format strict: +2376XXXXXXXX (8 chiffres après 6)
+  static final RegExp _cmMobile = RegExp(r'^\+2376\d{8}$');
+
+  static String normalize(String input) {
+    var s = input.trim().replaceAll(' ', '').replaceAll('-', '');
+
+    // déjà au bon format
+    if (_cmMobile.hasMatch(s)) return s;
+
+    // "6XXXXXXXX" -> "+2376XXXXXXXX"
+    if (RegExp(r'^6\d{8}$').hasMatch(s)) return '+237$s';
+
+    // "2376XXXXXXXX" -> "+2376XXXXXXXX"
+    if (RegExp(r'^2376\d{8}$').hasMatch(s)) return '+$s';
+
+    // "+2376XXXXXXXX" déjà traité plus haut, sinon on retourne tel quel
+    return s;
+  }
+
+  static bool isValid(String input) {
+    final s = normalize(input);
+    return _cmMobile.hasMatch(s);
+  }
+}

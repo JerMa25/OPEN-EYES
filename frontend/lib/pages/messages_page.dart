@@ -18,9 +18,6 @@ class MessagesPage extends StatefulWidget {
 class _MessagesPageState extends State<MessagesPage> {
   final _smsService = SmsService();
   late Future<List<SmsMessage>> _messagesFuture;
-  
-  String _selectedFilter = 'Tous';
-  final List<String> _filters = ['Tous', 'COMMANDE', 'ALERTE', 'NOTIFICATION', 'REPONSE'];
 
   @override
   void initState() {
@@ -38,20 +35,7 @@ class _MessagesPageState extends State<MessagesPage> {
     _loadMessages();
   }
 
-  String _getFilterLabel(String filter) {
-    switch (filter) {
-      case 'COMMANDE':
-        return 'Commandes';
-      case 'ALERTE':
-        return 'Alertes';
-      case 'NOTIFICATION':
-        return 'Notifications';
-      case 'REPONSE':
-        return 'Réponses';
-      default:
-        return 'Tous';
-    }
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +45,6 @@ class _MessagesPageState extends State<MessagesPage> {
         child: Column(
           children: [
             _buildHeader(),
-            _buildFilterChips(),
             const SizedBox(height: 8),
             Expanded(child: _buildMessagesList()),
           ],
@@ -106,47 +89,6 @@ class _MessagesPageState extends State<MessagesPage> {
     );
   }
 
-  Widget _buildFilterChips() {
-    return SizedBox(
-      height: 40,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _filters.length,
-        itemBuilder: (context, index) {
-          final filter = _filters[index];
-          final isSelected = _selectedFilter == filter;
-          
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              label: Text(_getFilterLabel(filter)),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _selectedFilter = selected ? filter : 'Tous';
-                });
-              },
-              backgroundColor: Colors.white,
-              selectedColor: Colors.blue[100],
-              checkmarkColor: Colors.blue,
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.blue[700] : Colors.grey[700],
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: isSelected ? Colors.blue : Colors.grey[300]!,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildMessagesList() {
     return RefreshIndicator(
       onRefresh: _refreshMessages,
@@ -165,7 +107,6 @@ class _MessagesPageState extends State<MessagesPage> {
 
           return MessageList(
             messages: messages,
-            filterType: _selectedFilter == 'Tous' ? null : _selectedFilter,
             onMessageTap: _showMessageDetails,
           );
         },

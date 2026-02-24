@@ -100,16 +100,17 @@ class Contact {
   @override
   int get hashCode => id.hashCode ^ telephone.hashCode;
 
-  String buildAddCommand({required String pin}) {
-  final safeName = fullName
+  String buildAddCommand() {
+  final safeName = nom
       .replaceAll(':', ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
 
   final safePhone = _normaliserTel(telephone);
 
-  return 'ADD:$pin:$safeName:$safePhone';
+  return 'ADD:$safeName:$safePhone';
 }
+
 
 static String _normaliserTel(String tel) {
   tel = tel.trim().replaceAll(' ', '').replaceAll('-', '');

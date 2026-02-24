@@ -67,16 +67,14 @@ class ContactService {
 
   /// Ajouter un contact dans la canne
   Future<SmsResult> ajouterContactCanne(Contact contact) async {
-  final cmd = contact.buildAddCommand(pin: AppConfig.smsPin);
+  final cmd = contact.buildAddCommand();
   return await _envoyerCommande(cmd);
-  }
-
-
+}
   /// Supprimer un contact de la canne
   /// Format: DEL:PIN:+237XXXXXXXXX
   Future<SmsResult> supprimerContactCanne(String telephone) async {
     String tel = _normaliserTel(telephone);
-    String cmd = 'DEL:${AppConfig.smsPin}:$tel';
+    String cmd = 'DEL:$tel';
     return await _envoyerCommande(cmd);
   }
 
@@ -84,28 +82,28 @@ class ContactService {
   /// Format: URG:PIN:+237XXXXXXXXX
   Future<SmsResult> definirUrgence(String telephone) async {
     String tel = _normaliserTel(telephone);
-    String cmd = 'URG:${AppConfig.smsPin}:$tel';
+    String cmd = 'URG:$tel';
     return await _envoyerCommande(cmd);
   }
 
   /// Lister les contacts de la canne
   /// Format: LIST:PIN
   Future<SmsResult> listerContactsCanne() async {
-    String cmd = 'LIST:${AppConfig.smsPin}';
+    String cmd = 'LIST';
     return await _envoyerCommande(cmd);
   }
 
   /// Effacer tous les contacts de la canne
   /// Format: CLEAR:PIN
   Future<SmsResult> effacerContactsCanne() async {
-    String cmd = 'CLEAR:${AppConfig.smsPin}';
+    String cmd = 'CLEAR';
     return await _envoyerCommande(cmd);
   }
 
   /// Tester l'envoi d'alerte
   /// Format: TEST:PIN
   Future<SmsResult> testerAlerte() async {
-    String cmd = 'TEST:${AppConfig.smsPin}';
+    String cmd = 'TEST';
     return await _envoyerCommande(cmd);
   }
 

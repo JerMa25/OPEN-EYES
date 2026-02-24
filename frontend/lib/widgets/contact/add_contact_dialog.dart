@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../../model/contact.dart';
 import '../../config.dart';
+import '../../ui/contact_style.dart';
 
 /// Dialogue pour ajouter ou modifier un contact
 class AddContactDialog extends StatefulWidget {
@@ -67,20 +68,25 @@ class _AddContactDialogState extends State<AddContactDialog> {
   bool get isEditing => widget.contact != null;
 
   void _save() {
-    if (!_formKey.currentState!.validate()) return;
+  FocusScope.of(context).unfocus(); // ✅ IMPORTANT (clavier/focus)
 
-    final contact = Contact(
-      id: widget.contact?.id,
-      canne: widget.canneId,
-      nom: _nomController.text.trim(),
-      prenom: _prenomController.text.trim(),
-      telephone: _phoneController.text.trim(),
-      typeContact: _selectedTypeContact,
-      priorite: widget.contact?.priorite ?? 1,
-    );
+  final form = _formKey.currentState;
+  if (form == null) return;
 
-    Navigator.pop(context, contact);
-  }
+  if (!form.validate()) return;
+
+  final contact = Contact(
+    id: widget.contact?.id,
+    canne: widget.canneId,
+    nom: _nomController.text.trim(),
+    prenom: _prenomController.text.trim(),
+    telephone: PhoneCM.normalize(_phoneController.text),
+    typeContact: _selectedTypeContact,
+    priorite: widget.contact?.priorite ?? 1,
+  );
+
+  Navigator.pop(context, contact);
+}
 
   InputDecoration _inputDecoration(String hint, IconData icon) {
     return InputDecoration(
@@ -116,8 +122,9 @@ class _AddContactDialogState extends State<AddContactDialog> {
           width: 400,
           padding: const EdgeInsets.all(24),
           child: Form(
-            key: _formKey,
-            child: Column(
+  key: _formKey,
+  autovalidateMode: AutovalidateMode.onUserInteraction, // ✅ AJOUTE ÇA
+  child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -186,19 +193,25 @@ class _AddContactDialogState extends State<AddContactDialog> {
                 Text('Téléphone', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[700])),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: _inputDecoration('+237690000000', Icons.phone_outlined),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Le téléphone est requis';
-                    }
-                    if (value.trim().length < 9) {
-                      return 'Numéro invalide';
-                    }
-                    return null;
-                  },
-                ),
+  controller: _phoneController,
+  keyboardType: TextInputType.phone,
+  decoration: _inputDecoration('+2376XXXXXXXX', Icons.phone_outlined),
+
+  onChanged: (_) {
+    // ✅ dès que tu modifies, on revalide et le bouton redevient "utile"
+    _formKey.currentState?.validate();
+  },
+
+  validator: (value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Le téléphone est requis';
+    }
+    if (!PhoneCM.isValid(value)) {
+      return 'Format invalide. Exemple: +2376XXXXXXXX';
+    }
+    return null;
+  },
+),
                 const SizedBox(height: 20),
 
                 // Type de contact
@@ -269,3 +282,9 @@ class _AddContactDialogState extends State<AddContactDialog> {
     );
   }
 }
+//Canne.objects.filter(id=237680590758).values("id","numero_gsm","statut")
+/*Canne.objects.create(
+    id=237691501793,
+    numero_gsm="237691501793",
+    statut="ACTIVE",
+) */

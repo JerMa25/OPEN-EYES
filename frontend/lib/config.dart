@@ -9,7 +9,7 @@ class AppConfig {
   // ══════════════════════════════════════════════════════════════════════════
   
   /// URL du backend Django
-  static const String baseUrl = 'http://192.168.198.198:8000';
+  static const String baseUrl = 'http://172.20.10.6:8000';
   
   /// Timeout HTTP en secondes
   static const int httpTimeout = 15;
@@ -23,7 +23,10 @@ class AppConfig {
   
   /// Numéro de la canne (sans le +)
   /// C'est le numéro de la carte SIM dans le module GSM de la canne
-  static const int cannePhoneNumber = 237672777581;
+  //static const int cannePhoneNumber = 237672777581;
+  static const int cannePhoneNumber = 237651937920;
+  //51937920
+
   
   /// Alias
   static const int canneId = cannePhoneNumber;
@@ -38,8 +41,6 @@ class AppConfig {
   // 🔐 SÉCURITÉ
   // ══════════════════════════════════════════════════════════════════════════
   
-  /// Code PIN pour les commandes SMS (doit correspondre au code dans l'ESP32)
-  static const String smsPin = '1234';
   
   /// Rôle par défaut pour l'API
   static const String defaultRole = 'SUPER_ADMIN';
@@ -70,7 +71,6 @@ class AppConfig {
     debugPrint('╠══════════════════════════════════════════╣');
     debugPrint('║ Backend: $baseUrl');
     debugPrint('║ Canne: $cannePhoneDisplay');
-    debugPrint('║ PIN: $smsPin');
     debugPrint('╚══════════════════════════════════════════╝');
   }
 }
