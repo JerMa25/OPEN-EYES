@@ -252,23 +252,38 @@ void gererBoutonSOS() {
     int etatBouton = digitalRead(BOUTON_SOS);
     unsigned long maintenant = millis();
     
+    //Début d'appui
     if (etatBouton == LOW && debutAppui == 0) {
         debutAppui = maintenant;
+        appuiLong = false;
+        Logger::info("[BTN] Appui détecté (début)");
+    }
+
+    //appui long
+    if (etatBouton == LOW && debutAppui > 0) {
+        unsigned long duree = maintenant - debutAppui;
+
+        static unsigned long lastTickLog = 0;
+        if (maintenant - lastTickLog > 500) {
+            lastTickLog = maintenant;
+            Logger::info("[BTN] Maintien..." + String(duree) + "ms");
+        }
     }
     
-    if (etatBouton == LOW && (maintenant - debutAppui >= DELAI_APPUI_LONG)) {
-        if (!appuiLong) {
-            Logger::warn("🆘 APPUI LONG DÉTECTÉ - ALERTE SOS");
-            gsmModule.sendSOS();
-            appuiLong = true;
-        }
+    if (duree >= DELAI_APPUI_LONG && !appuiLong) {
+        Logger::warn("🆘 [BTN] APPUI LONG DÉTECTÉ (" + String(duree) + "ms) -> sendSOS()");
+        gsmModule.sendSOS();
+        Logger::warn("🆘 [BTN] sendSOS() déclenché (attente résultat SIM808 dans logs)")
+        appuiLong = true;
     }
     
     if (etatBouton == HIGH && debutAppui > 0) {
         unsigned long dureeAppui = maintenant - debutAppui;
         
+        Logger::info("[BTN] Relâchement (" + String(dureeAppui) + "ms)");
+
         if (dureeAppui < DELAI_APPUI_LONG && !appuiLong) {
-            Logger::info("✅ CLIC COURT - Tout va bien");
+            Logger::info("✅ [BTN] CLIC COURT - Tout va bien");
         }
         
         debutAppui = 0;

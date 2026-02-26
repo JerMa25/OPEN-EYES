@@ -646,7 +646,15 @@ void ObstacleDetector::alerterEau(int niveau) {
         waterAlertState = WATER_ALERT_BIP1_ON;
         waterAlertLastChange = millis();
         
-    } 
+    } else if (niveau > WATER_THRESHOLD_LOW) {
+        Logger::info("🔊 [EAU] Alerte niveau moyen (1 bip)");
+        
+        // Un seul bip court
+        digitalWrite(BUZZER_2_PIN, HIGH);
+        waterAlertState = WATER_ALERT_SINGLE_BIP;
+        waterAlertLastChange = millis();
+
+    }
 }
 
 // =======================================================
