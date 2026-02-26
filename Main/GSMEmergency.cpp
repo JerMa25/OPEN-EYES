@@ -12,36 +12,76 @@ GSMEmergency::GSMEmergency(HardwareSerial& serial, GPSTracker& gpsRef)
 
 void GSMEmergency::init() {
     Logger::info("Initialisation GSM");
-    
+
     // Initialise l'EEPROM
     initialiserEEPROM();
-    
-    // ✅ RESET WATCHDOG
+
+    // ── Étape 1 : Tester d'abord si le SIM808 répond déjà ─────────────────
+    // IMPORTANT : PWRKEY fonctionne en TOGGLE sur le SIM808.
+    //   - Si module ÉTEINT → impulsion l'ALLUME
+    //   - Si module ALLUMÉ → impulsion l'ÉTEINT
+    // Il faut donc tester AT avant d'envoyer l'impulsion !
+    pinMode(SIM808_PWR, OUTPUT);
+    digitalWrite(SIM808_PWR, HIGH); // état de repos (inactif)
+
+    Logger::info("[GSM] Test présence SIM808...");
+
+    // Vide le buffer avant de tester
+    while (sim808.available()) sim808.read();
+
+    sim808.println("AT");
+    bool dejaPret = waitFor("OK", 3000);
+
+    if (!dejaPret) {
+        // Le module ne répond pas → envoyer l'impulsion PWRKEY pour le démarrer
+        Logger::info("[GSM] Pas de réponse, envoi impulsion PWRKEY...");
+        digitalWrite(SIM808_PWR, LOW);
+        delay(1500); // maintien > 1s requis par le SIM808
+        digitalWrite(SIM808_PWR, HIGH);
+        Logger::info("[GSM] Impulsion envoyée, attente démarrage (5s)...");
+        esp_task_wdt_reset();
+        delay(5000); // délai de démarrage du module
+        esp_task_wdt_reset();
+
+        // Vide le buffer des messages de démarrage
+        while (sim808.available()) sim808.read();
+
+        // Re-test AT
+        sim808.println("AT");
+        if (!waitFor("OK", 5000)) {
+            Logger::error("[GSM] SIM808 ne répond toujours pas ! Vérifier câblage TX/RX et alimentation.");
+            ready = false;
+            return;
+        }
+    }
+
+    Logger::info("[GSM] SIM808 répond OK");
     esp_task_wdt_reset();
-    
-    // Configure le module en mode texte pour les SMS
+
+    // ── Étape 2 : Mode SMS texte ──────────────────────────────────────────
+    while (sim808.available()) sim808.read(); // flush buffer avant chaque commande
     sim808.println("AT+CMGF=1");
-    delay(500);
-    
-    // ✅ RESET WATCHDOG
+    if (!waitFor("OK", 2000)) {
+        Logger::error("[GSM] AT+CMGF=1 échoué");
+        ready = false;
+        return;
+    }
     esp_task_wdt_reset();
-    
-    // Active les notifications de SMS entrants
+
+    // ── Étape 3 : Notifications SMS entrants ─────────────────────────────
+    while (sim808.available()) sim808.read();
     sim808.println("AT+CNMI=2,2,0,0,0");
-    delay(500);
-    
-    // ✅ RESET WATCHDOG
+    waitFor("OK", 2000);
     esp_task_wdt_reset();
-    
-    // Active le GPS du SIM808
+
+    // ── Étape 4 : Active le GPS interne du SIM808 ────────────────────────
+    while (sim808.available()) sim808.read();
     sim808.println("AT+CGPSPWR=1");
-    delay(1000);
-    
-    // ✅ RESET WATCHDOG
+    waitFor("OK", 2000);
     esp_task_wdt_reset();
-    
+
     ready = true;
-    Logger::info("GSM prêt - Contacts: " + String(getNombreContacts()));
+    Logger::info("[GSM] Prêt - Contacts: " + String(getNombreContacts()));
 }
 
 // Initialise l'EEPROM
@@ -134,14 +174,14 @@ bool GSMEmergency::estNumeroAdmin(const String& numero) {
 
 // Traite les commandes SMS de l'admin
 void GSMEmergency::traiterCommandeAdmin(const String& sms) {
-    Logger::info("Commande admin reçue");
-    
-    // Commande: ADMIN:ADD:+237XXXXXXXXX
-    if (sms.indexOf("ADMIN:ADD:") != -1) {
-        int pos = sms.indexOf("ADMIN:ADD:") + 10;
+    Logger::info("Commande reçue");
+
+    // ✅ ADD:+237XXXXXXXXX
+    if (sms.indexOf("ADD:") != -1) {
+        int pos = sms.indexOf("ADD:") + 4;
         String numero = sms.substring(pos, pos + 13);
         numero.trim();
-        
+
         if (numero.startsWith("+") && numero.length() >= 10) {
             if (ajouterContact(numero)) {
                 sendSMS(NUMERO_ADMIN, "CONF_OK: Contact ajoute: " + numero);
@@ -150,16 +190,16 @@ void GSMEmergency::traiterCommandeAdmin(const String& sms) {
                 sendSMS(NUMERO_ADMIN, "ERREUR: Memoire pleine ou existe deja");
             }
         } else {
-            sendSMS(NUMERO_ADMIN, "ERREUR: Format invalide. ADMIN:ADD:+237XXXXXXXXX");
+            sendSMS(NUMERO_ADMIN, "ERREUR: Format invalide. ADD:+237XXXXXXXXX");
         }
     }
-    
-    // Commande: ADMIN:DEL:+237XXXXXXXXX
-    else if (sms.indexOf("ADMIN:DEL:") != -1) {
-        int pos = sms.indexOf("ADMIN:DEL:") + 10;
+
+    // ✅ DEL:+237XXXXXXXXX
+    else if (sms.indexOf("DEL:") != -1) {
+        int pos = sms.indexOf("DEL:") + 4;
         String numero = sms.substring(pos, pos + 13);
         numero.trim();
-        
+
         if (supprimerContact(numero)) {
             sendSMS(NUMERO_ADMIN, "CONF_OK: Contact supprime: " + numero);
             Logger::info("Contact supprimé: " + numero);
@@ -167,17 +207,17 @@ void GSMEmergency::traiterCommandeAdmin(const String& sms) {
             sendSMS(NUMERO_ADMIN, "ERREUR: Contact non trouve");
         }
     }
-    
-    // Commande: ADMIN:LIST
-    else if (sms.indexOf("ADMIN:LIST") != -1) {
+
+    // ✅ LIST
+    else if (sms.indexOf("LIST") != -1) {
         listerContacts();
     }
-    
-    // Commande: ADMIN:LOC (demande de localisation)
-    else if (sms.indexOf("ADMIN:LOC") != -1) {
+
+    // ✅ LOC
+    else if (sms.indexOf("LOC") != -1) {
         GPSData gpsData = gps.getGPSData();
         String reponse = "Position actuelle:\n";
-        
+
         if (gpsData.isValid) {
             reponse += "http://maps.google.com/maps?q=";
             reponse += String(gpsData.latitude, 6) + "," + String(gpsData.longitude, 6);
@@ -188,18 +228,18 @@ void GSMEmergency::traiterCommandeAdmin(const String& sms) {
             reponse += "Fix: " + gpsData.fixType;
             reponse += "\nSats: " + String(gpsData.satellitesCount);
         }
-        
+
         sendSMS(NUMERO_ADMIN, reponse);
     }
-    
-    // Commande: ADMIN:HELP
-    else if (sms.indexOf("ADMIN:HELP") != -1) {
+
+    // ✅ HELP
+    else if (sms.indexOf("HELP") != -1) {
         String aide = "Commandes:\n";
-        aide += "ADMIN:ADD:+237XXX - Ajouter\n";
-        aide += "ADMIN:DEL:+237XXX - Supprimer\n";
-        aide += "ADMIN:LIST - Liste\n";
-        aide += "ADMIN:LOC - Position\n";
-        aide += "ADMIN:HELP - Aide";
+        aide += "ADD:+237XXX - Ajouter\n";
+        aide += "DEL:+237XXX - Supprimer\n";
+        aide += "LIST - Liste\n";
+        aide += "LOC - Position\n";
+        aide += "HELP - Aide";
         sendSMS(NUMERO_ADMIN, aide);
     }
 }
@@ -320,37 +360,26 @@ int GSMEmergency::getNombreContacts() const {
 // Envoie une alerte SOS simple au numéro d'urgence
 void GSMEmergency::sendSOS() {
     Logger::warn("=== ALERTE SOS ===");
-    
-    // Récupère toutes les données GPS
+
     GPSData gpsData = gps.getGPSData();
-    
-    // Construction du message SOS
     String msg = "ALERTE SOS - Canne Intelligente\n\n";
-    
-    // Vérifie si les données GPS sont valides
+
     if (gpsData.isValid) {
-        msg += "Position:\n";
-        msg += "http://maps.google.com/maps?q=";
+        msg += "Position:\nhttp://maps.google.com/maps?q=";
         msg += String(gpsData.latitude, 6) + "," + String(gpsData.longitude, 6);
-        msg += "\n\n";
-        msg += "Lat: " + String(gpsData.latitude, 6) + "\n";
-        msg += "Lon: " + String(gpsData.longitude, 6) + "\n";
-        msg += "Alt: " + String(gpsData.altitude, 1) + "m\n";
-        
-        if (gpsData.speed > 1.0) {
-            msg += "Vitesse: " + String(gpsData.speed, 1) + " km/h\n";
-        }
-        
-        msg += "Sats: " + String(gpsData.satellitesCount) + "\n";
-        msg += "Fix: " + gpsData.fixType;
+        msg += "\nSats: " + String(gpsData.satellitesCount);
+        msg += "\nFix: " + gpsData.fixType;
     } else {
         msg += "Position GPS indisponible\n";
-        msg += "Raison: " + gpsData.fixType + "\n";
+        msg += "Fix: " + gpsData.fixType + "\n";
         msg += "Sats: " + String(gpsData.satellitesCount);
     }
-    
-    // Envoie au numéro d'urgence principal
+
+    // 1) Numéro urgence principal
     sendSMS(NUMERO_URGENCE, msg);
+
+    // 2) Tous les contacts EEPROM (donc ton tel test)
+    sendAlertToAll(msg);
 }
 
 // Envoie une alerte à TOUS les contacts enregistrés en EEPROM
@@ -386,35 +415,95 @@ void GSMEmergency::sendAlertToAll(const String& message) {
     Logger::info("Alertes envoyées: " + String(envoyesAvecSucces) + "/" + String(getNombreContacts()));
 }
 
-// Envoie un SMS via le module GSM
+// Lis les réponses du SIM808 pendant un délai, et les loggue
+String GSMEmergency::readUntil(unsigned long timeoutMs) {
+    String resp = "";
+    unsigned long start = millis();
+    while (millis() - start < timeoutMs) {
+        while (sim808.available()) {
+            char c = sim808.read();
+            resp += c;
+        }
+        // petite pause pour laisser le modem répondre
+        delay(10);
+        esp_task_wdt_reset();
+    }
+    resp.trim();
+    return resp;
+}
+
+// Attend qu'un motif apparaisse dans la réponse (OK, ERROR, >, etc.)
+bool GSMEmergency::waitFor(const String& token, unsigned long timeoutMs) {
+    unsigned long start = millis();
+    String buf = "";
+    while (millis() - start < timeoutMs) {
+        while (sim808.available()) {
+            char c = sim808.read();
+            buf += c;
+            if (buf.indexOf(token) != -1) {
+                return true;
+            }
+            if (buf.indexOf("ERROR") != -1) {
+                return false;
+            }
+        }
+        delay(10);
+        esp_task_wdt_reset();
+    }
+    return false;
+}
+
+// ✅ Envoie un SMS ET confirme l'envoi (OK/ERROR)
 bool GSMEmergency::sendSMS(const String& number, const String& message) {
     if (!ready) {
-        Logger::error("GSM non prêt");
+        Logger::error("[SMS] GSM non prêt");
         return false;
     }
-    
+
     if (number.length() < 10) {
-        Logger::error("Numéro invalide: " + number);
+        Logger::error("[SMS] Numéro invalide: " + number);
         return false;
     }
-    
-    Logger::info("Envoi SMS vers: " + number);
-    
-    // Commande AT pour envoyer un SMS
-    sim808.print("AT+CMGF=1\r");
-    delay(100);
-    
+
+    Logger::info("[SMS] Préparation envoi vers: " + number);
+
+    // Mode texte
+    sim808.println("AT+CMGF=1");
+    if (!waitFor("OK", 1500)) {
+        Logger::error("[SMS] AT+CMGF=1 -> pas de OK");
+        Logger::error("[SMS] Réponse: " + readUntil(500));
+        return false;
+    }
+
+    // Démarre l'envoi
     sim808.print("AT+CMGS=\"");
     sim808.print(number);
     sim808.println("\"");
-    delay(200);
-    
-    // Envoie le message
+
+    // Le modem doit répondre ">" pour indiquer qu'il attend le message
+    if (!waitFor(">", 3000)) {
+        Logger::error("[SMS] AT+CMGS -> pas de prompt '>' (ou ERROR)");
+        Logger::error("[SMS] Réponse: " + readUntil(1000));
+        return false;
+    }
+
+    // Envoie le message + Ctrl+Z
     sim808.print(message);
-    
-    // Envoie Ctrl+Z pour terminer
-    sim808.write(26);
-    delay(3000);
-    
-    return true;
+    sim808.write(26); // Ctrl+Z
+
+    // Attendre confirmation d'envoi (+CMGS puis OK)
+    bool gotCMGS = waitFor("+CMGS:", 10000);
+    bool gotOK = waitFor("OK", 10000);
+
+    String tail = readUntil(800); // récupère le reste pour log
+
+    if (gotCMGS && gotOK) {
+        Logger::warn("[SMS] ✅ ENVOI CONFIRMÉ vers " + number);
+        if (tail.length()) Logger::info("[SMS] Détails: " + tail);
+        return true;
+    }
+
+    Logger::error("[SMS] ❌ ENVOI ÉCHOUÉ vers " + number);
+    if (tail.length()) Logger::error("[SMS] Détails: " + tail);
+    return false;
 }
