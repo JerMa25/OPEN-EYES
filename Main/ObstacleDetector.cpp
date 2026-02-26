@@ -322,7 +322,7 @@ void ObstacleDetector::updateWaterAlert() {
             
         case WATER_ALERT_BIP1_ON:
             // ✅ Premier bip AIGU (2200 Hz)
-            tone(BUZZER_2_PIN, WATER_FREQ_WARNING);  // Tonalité aiguë
+            buzzer1On();  // Tonalité aiguë
             Logger::info("🔊 [EAU] Bip 1 ON (2200 Hz)");
             
             if (currentTime - waterAlertLastChange >= 150) {
@@ -333,7 +333,7 @@ void ObstacleDetector::updateWaterAlert() {
             
         case WATER_ALERT_BIP1_OFF:
             // ✅ Pause entre bip 1 et 2
-            noTone(BUZZER_2_PIN);
+            buzzer1Off();
             Logger::info("🔊 [EAU] Bip 1 OFF");
             
             if (currentTime - waterAlertLastChange >= 100) {
@@ -344,12 +344,12 @@ void ObstacleDetector::updateWaterAlert() {
             
         case WATER_ALERT_BIP2_ON:
             // ✅ Deuxième bip PLUS AIGU (2500 Hz)
-            tone(BUZZER_2_PIN, 2500);  // Encore plus aigu
+            buzzer2On();  // Encore plus aigu
             Logger::info("🔊 [EAU] Bip 2 ON (2500 Hz)");
             
             if (currentTime - waterAlertLastChange >= 150) {
                 waterAlertState = WATER_ALERT_OFF;
-                noTone(BUZZER_2_PIN);
+                buzzer2Off();
                 waterAlertLastChange = currentTime;
                 Logger::info("🔊 [EAU] Séquence terminée");
             }
@@ -357,12 +357,13 @@ void ObstacleDetector::updateWaterAlert() {
             
         case WATER_ALERT_SINGLE_BIP:
             // ✅ Bip unique long pour niveau moyen
-            tone(BUZZER_2_PIN, WATER_FREQ_ALERT);  // 1800 Hz
+            buzzer2On();
+            buzzer1On();  // 1800 Hz
             Logger::info("🔊 [EAU] Bip unique (1800 Hz)");
             
             if (currentTime - waterAlertLastChange >= 300) {
                 waterAlertState = WATER_ALERT_OFF;
-                noTone(BUZZER_2_PIN);
+                buzzer2Off();
                 Logger::info("🔊 [EAU] Bip unique terminé");
             }
             break;
