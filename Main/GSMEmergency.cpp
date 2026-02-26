@@ -15,12 +15,6 @@ void GSMEmergency::init() {
 
     // Initialise l'EEPROM
     initialiserEEPROM();
-
-    // ── Étape 1 : Tester d'abord si le SIM808 répond déjà ─────────────────
-    // IMPORTANT : PWRKEY fonctionne en TOGGLE sur le SIM808.
-    //   - Si module ÉTEINT → impulsion l'ALLUME
-    //   - Si module ALLUMÉ → impulsion l'ÉTEINT
-    // Il faut donc tester AT avant d'envoyer l'impulsion !
     pinMode(SIM808_PWR, OUTPUT);
     digitalWrite(SIM808_PWR, HIGH); // état de repos (inactif)
 
@@ -135,14 +129,8 @@ void GSMEmergency::traiterSMSEntrants() {
     if (sms.length() == 0) return;
     
     Logger::info("SMS reçu");
-    
-    // Extrait le numéro de l'expéditeur
-    String expediteur = extraireNumeroExpediteur(sms);
-    
-    // Vérifie si c'est une commande admin
-    if (estNumeroAdmin(expediteur)) {
-        traiterCommandeAdmin(sms);
-    }
+    Logger::info("[RX RAW] " + sms);
+    traiterCommandeAdmin(sms);    
 }
 
 // Extrait le numéro de téléphone de l'expéditeur
@@ -172,76 +160,123 @@ bool GSMEmergency::estNumeroAdmin(const String& numero) {
     return (numero == String(NUMERO_ADMIN));
 }
 
+static String normCM(String s) {
+  s.trim();
+  s.replace(" ", "");
+  s.replace("\r", "");
+  s.replace("\n", "");
+  if (s.startsWith("237")) s = "+" + s;
+  if (s.length() == 9 && (s.startsWith("6") || s.startsWith("2") || s.startsWith("9"))) {
+    s = "+237" + s;
+  }
+  return s;
+}
+
+// extrait la valeur après "ADD:" jusqu'à fin de ligne / fin sms
+static String extractAfter(const String& sms, const String& key) {
+  int p = sms.indexOf(key);
+  if (p == -1) return "";
+  p += key.length();
+
+  // prendre jusqu'à fin de ligne si possible
+  int end = sms.indexOf('\n', p);
+if (end == -1) end = sms.indexOf('\r', p);
+if (end == -1) end = sms.length();
+
+  String v = sms.substring(p, end);
+  v.trim();
+  return v;
+}
+
 // Traite les commandes SMS de l'admin
 void GSMEmergency::traiterCommandeAdmin(const String& sms) {
-    Logger::info("Commande reçue");
+  Logger::info("Commande reçue");
 
-    // ✅ ADD:+237XXXXXXXXX
-    if (sms.indexOf("ADD:") != -1) {
-        int pos = sms.indexOf("ADD:") + 4;
-        String numero = sms.substring(pos, pos + 13);
-        numero.trim();
+  // ✅ ADD:+237XXXXXXXXX
+  if (sms.indexOf("ADD:") != -1) {
+    String numero = extractAfter(sms, "ADD:");
+    numero = normCM(numero);
 
-        if (numero.startsWith("+") && numero.length() >= 10) {
-            if (ajouterContact(numero)) {
-                sendSMS(NUMERO_ADMIN, "CONF_OK: Contact ajoute: " + numero);
-                Logger::info("Contact ajouté: " + numero);
-            } else {
-                sendSMS(NUMERO_ADMIN, "ERREUR: Memoire pleine ou existe deja");
-            }
-        } else {
-            sendSMS(NUMERO_ADMIN, "ERREUR: Format invalide. ADD:+237XXXXXXXXX");
-        }
+    // ✅ Cameroun: +237 + 9 chiffres = 13
+    if (!(numero.startsWith("+237") && numero.length() >= 13)) {
+      Logger::error("[ADD] Format invalide: " + numero);
+      sendSMS(NUMERO_ADMIN, "ERREUR: Format invalide. ADD:+237XXXXXXXXX");
+      return;
     }
 
-    // ✅ DEL:+237XXXXXXXXX
-    else if (sms.indexOf("DEL:") != -1) {
-        int pos = sms.indexOf("DEL:") + 4;
-        String numero = sms.substring(pos, pos + 13);
-        numero.trim();
+    // marge: on coupe à 13 si jamais il y a du bruit après
+    numero = numero.substring(0, 13);
 
-        if (supprimerContact(numero)) {
-            sendSMS(NUMERO_ADMIN, "CONF_OK: Contact supprime: " + numero);
-            Logger::info("Contact supprimé: " + numero);
-        } else {
-            sendSMS(NUMERO_ADMIN, "ERREUR: Contact non trouve");
-        }
+    Logger::info("[ADD] Numéro parsé = " + numero);
+
+    bool ok = ajouterContact(numero);
+
+    if (ok) {
+      Logger::info("[EEPROM] ✅ Contact ajouté: " + numero);
+
+      // ✅ Preuve: relire et vérifier qu'il existe
+      bool exists = contactExiste(numero);
+      Logger::info(String("[EEPROM] Vérif après écriture: ") + (exists ? "OK" : "ECHEC"));
+
+      sendSMS(NUMERO_ADMIN, "CONF_OK: Contact ajoute: " + numero);
+    } else {
+      Logger::warn("[EEPROM] ❌ Ajout refusé (existe ou mémoire pleine): " + numero);
+      sendSMS(NUMERO_ADMIN, "ERREUR: Memoire pleine ou existe deja");
+    }
+    return;
+  }
+
+  // ✅ DEL:+237XXXXXXXXX
+  if (sms.indexOf("DEL:") != -1) {
+    String numero = extractAfter(sms, "DEL:");
+    numero = normCM(numero);
+    if (numero.startsWith("+237") && numero.length() >= 13) numero = numero.substring(0, 13);
+
+    if (supprimerContact(numero)) {
+      Logger::info("[EEPROM] ✅ Contact supprimé: " + numero);
+      sendSMS(NUMERO_ADMIN, "CONF_OK: Contact supprime: " + numero);
+    } else {
+      Logger::warn("[EEPROM] ❌ Contact introuvable: " + numero);
+      sendSMS(NUMERO_ADMIN, "ERREUR: Contact non trouve");
+    }
+    return;
+  }
+
+  if (sms.indexOf("LIST") != -1) {
+    listerContacts();
+    return;
+  }
+
+  if (sms.indexOf("LOC") != -1) {
+    // ton code LOC inchangé
+    GPSData gpsData = gps.getGPSData();
+    String reponse = "Position actuelle:\n";
+
+    if (gpsData.isValid) {
+      reponse += "http://maps.google.com/maps?q=";
+      reponse += String(gpsData.latitude, 6) + "," + String(gpsData.longitude, 6);
+      reponse += "\nSats: " + String(gpsData.satellitesCount);
+      reponse += "\nFix: " + gpsData.fixType;
+    } else {
+      reponse += "Position indisponible\n";
+      reponse += "Fix: " + gpsData.fixType;
+      reponse += "\nSats: " + String(gpsData.satellitesCount);
     }
 
-    // ✅ LIST
-    else if (sms.indexOf("LIST") != -1) {
-        listerContacts();
-    }
+    sendSMS(NUMERO_ADMIN, reponse);
+    return;
+  }
 
-    // ✅ LOC
-    else if (sms.indexOf("LOC") != -1) {
-        GPSData gpsData = gps.getGPSData();
-        String reponse = "Position actuelle:\n";
-
-        if (gpsData.isValid) {
-            reponse += "http://maps.google.com/maps?q=";
-            reponse += String(gpsData.latitude, 6) + "," + String(gpsData.longitude, 6);
-            reponse += "\nSats: " + String(gpsData.satellitesCount);
-            reponse += "\nFix: " + gpsData.fixType;
-        } else {
-            reponse += "Position indisponible\n";
-            reponse += "Fix: " + gpsData.fixType;
-            reponse += "\nSats: " + String(gpsData.satellitesCount);
-        }
-
-        sendSMS(NUMERO_ADMIN, reponse);
-    }
-
-    // ✅ HELP
-    else if (sms.indexOf("HELP") != -1) {
-        String aide = "Commandes:\n";
-        aide += "ADD:+237XXX - Ajouter\n";
-        aide += "DEL:+237XXX - Supprimer\n";
-        aide += "LIST - Liste\n";
-        aide += "LOC - Position\n";
-        aide += "HELP - Aide";
-        sendSMS(NUMERO_ADMIN, aide);
-    }
+  if (sms.indexOf("HELP") != -1) {
+    String aide = "Commandes:\n";
+    aide += "ADD:+237XXX - Ajouter\n";
+    aide += "DEL:+237XXX - Supprimer\n";
+    aide += "LIST - Liste\n";
+    aide += "LOC - Position\n";
+    aide += "HELP - Aide";
+    sendSMS(NUMERO_ADMIN, aide);
+    return;
+  }
 }
 
 // Ajoute un contact d'urgence en EEPROM
@@ -304,8 +339,11 @@ void GSMEmergency::sauvegarderContact(int slot, const String& numero) {
     for (int i = 0; i < numero.length() && i < CONTACT_LENGTH - 1; i++) {
         EEPROM.write(addr + i, numero[i]);
     }
+    Logger::info("[EEPROM] Écriture slot " + String(slot) + " addr=" + String(addr) + " val=" + numero);
     
     EEPROM.commit();
+    String readBack = lireContact(slot);
+    Logger::info("[EEPROM] Relu slot " + String(slot) + " => " + readBack);
 }
 
 // Lit un contact depuis l'EEPROM
