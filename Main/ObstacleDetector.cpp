@@ -138,36 +138,39 @@ void ObstacleDetector::init() {
 // UPDATE - SANS DELAY
 // =======================================================
 void ObstacleDetector::update() {
-    if (!ready) {
-        return;
-    }
-
+    if (!ready) return;
+    
     unsigned long currentTime = millis();
     
-    // Throttle général
-    if (currentTime - lastObstacleCheckTime < OBSTACLE_CHECK_INTERVAL) {
-        // Même en throttle, on update les buzzers
-        updateBuzzer1();
-        updateBuzzer2();
-        updateWaterAlert();
-        return;
+    // Vérifications périodiques (50ms)
+    if (currentTime - lastObstacleCheckTime >= OBSTACLE_CHECK_INTERVAL) {
+        verifierObstacleHaut();
+        balayerNiveauBas();
+        
+        // ✅ AJOUTER DES LOGS DE DEBUG
+        if (WATER_SENSOR_ENABLED) {
+            if (currentTime - lastWaterCheckTime >= WATER_CHECK_INTERVAL) {
+                Logger::info("💧 [DEBUG] Vérification capteur eau...");
+                verifierEau();
+                
+                lastWaterCheckTime = currentTime;
+            }
+        } else {
+            // ✅ LOG SI DÉSACTIVÉ
+            static unsigned long lastDisabledLog = 0;
+            if (currentTime - lastDisabledLog >= 10000) {
+                Logger::warn("💧 [WARNING] Capteur eau DÉSACTIVÉ dans Config.h");
+                lastDisabledLog = currentTime;
+            }
+        }
+        
+        lastObstacleCheckTime = currentTime;
     }
     
-    lastObstacleCheckTime = currentTime;
-
-    // Vérifier obstacles
-    verifierObstacleHaut();
-    balayerNiveauBas();
-
-    // Update buzzers
+    // Mise à jour des buzzers (non-bloquant)
     updateBuzzer1();
     updateBuzzer2();
-    
-    // Vérifier eau
-    if (WATER_SENSOR_ENABLED) {
-        verifierEau();
-        updateWaterAlert();  // ✅ NOUVEAU : Alerte eau non-bloquante
-    }
+    updateWaterAlert();
 }
 
 // =======================================================
@@ -307,60 +310,65 @@ void ObstacleDetector::updateBuzzer2() {
 // UPDATE ALERTE EAU NON-BLOQUANTE
 // =======================================================
 void ObstacleDetector::updateWaterAlert() {
-    unsigned long now = millis();
+    if (!WATER_SENSOR_ENABLED) return;
+    
+    unsigned long currentTime = millis();
     
     switch (waterAlertState) {
         case WATER_ALERT_OFF:
-            // Rien à faire
+            // Ne rien faire
+            buzzer2Off();
             break;
             
         case WATER_ALERT_BIP1_ON:
-            if (now - waterAlertLastChange >= 300) {
-                digitalWrite(BUZZER_2_PIN, LOW);
+            // ✅ Premier bip AIGU (2200 Hz)
+            buzzer1On();  // Tonalité aiguë
+            Logger::info("🔊 [EAU] Bip 1 ON (2200 Hz)");
+            
+            if (currentTime - waterAlertLastChange >= 150) {
                 waterAlertState = WATER_ALERT_BIP1_OFF;
-                waterAlertLastChange = now;
+                waterAlertLastChange = currentTime;
             }
             break;
             
         case WATER_ALERT_BIP1_OFF:
-            if (now - waterAlertLastChange >= 100) {
-                digitalWrite(BUZZER_2_PIN, HIGH);
+            // ✅ Pause entre bip 1 et 2
+            buzzer1Off();
+            Logger::info("🔊 [EAU] Bip 1 OFF");
+            
+            if (currentTime - waterAlertLastChange >= 100) {
                 waterAlertState = WATER_ALERT_BIP2_ON;
-                waterAlertLastChange = now;
+                waterAlertLastChange = currentTime;
             }
             break;
             
         case WATER_ALERT_BIP2_ON:
-            if (now - waterAlertLastChange >= 300) {
-                digitalWrite(BUZZER_2_PIN, LOW);
+            // ✅ Deuxième bip PLUS AIGU (2500 Hz)
+            buzzer2On();  // Encore plus aigu
+            Logger::info("🔊 [EAU] Bip 2 ON (2500 Hz)");
+            
+            if (currentTime - waterAlertLastChange >= 150) {
                 waterAlertState = WATER_ALERT_OFF;
-                waterAlertLastChange = now;
+                buzzer2Off();
+                waterAlertLastChange = currentTime;
+                Logger::info("🔊 [EAU] Séquence terminée");
             }
             break;
-
+            
         case WATER_ALERT_SINGLE_BIP:
-            if (now - waterAlertLastChange >= 300) {
-                digitalWrite(BUZZER_2_PIN, LOW);
+            // ✅ Bip unique long pour niveau moyen
+            buzzer2On();
+            buzzer1On();  // 1800 Hz
+            Logger::info("🔊 [EAU] Bip unique (1800 Hz)");
+            
+            if (currentTime - waterAlertLastChange >= 300) {
                 waterAlertState = WATER_ALERT_OFF;
-                waterAlertLastChange = now;
+                buzzer2Off();
+                Logger::info("🔊 [EAU] Bip unique terminé");
             }
             break;
     }
 }
-
-// =======================================================
-// CALCUL INTERVALLE SELON DISTANCE
-// =======================================================
-// int ObstacleDetector::getIntervalForDistance(int distance) {
-//     if (distance >= BUZZER_DISTANCE_LENT) {
-//         return BUZZER_INTERVAL_LENT;
-//     } else if (distance >= BUZZER_DISTANCE_MOYEN) {
-//         return BUZZER_INTERVAL_MOYEN;
-//     } else if (distance >= BUZZER_DISTANCE_RAPIDE) {
-//         return BUZZER_INTERVAL_RAPIDE;
-//     }
-//     return 0; // Continu
-// }
 
 // =======================================================
 // CATÉGORIE DE DISTANCE (POUR LOGS)
@@ -574,21 +582,31 @@ void ObstacleDetector::balayerNiveauBas() {
 // VÉRIFIER EAU
 // =======================================================
 void ObstacleDetector::verifierEau() {
-    unsigned long currentTime = millis();
+    Logger::info("💧 [EAU] Début vérification...");
     
-    if (currentTime - lastWaterCheckTime < WATER_CHECK_INTERVAL) {
-        return;
-    }
-    
-    lastWaterCheckTime = currentTime;
     int niveau = lireNiveauEau();
     
+    Logger::info("💧 [EAU] Niveau brut lu: " + String(niveau));
+    Logger::info("💧 [EAU] Seuil LOW: " + String(WATER_THRESHOLD_LOW));
+    Logger::info("💧 [EAU] Seuil HIGH: " + String(WATER_THRESHOLD_HIGH));
+    
+    lastWaterLevel = niveau;
+    waterRawValue = niveau;
+    
+    // Détection eau
     if (niveau > WATER_THRESHOLD_LOW) {
-        if (currentTime - lastWaterAlertTime > WATER_ALERT_COOLDOWN) {
-            Logger::warn("💧 [EAU] EAU DÉTECTÉE (niveau=" + String(niveau) + ") !");
+        Logger::warn("💧 [EAU] EAU DÉTECTÉE ! Niveau=" + String(niveau));
+        
+        unsigned long currentTime = millis();
+        if (currentTime - lastWaterAlertTime >= WATER_ALERT_COOLDOWN) {
+            Logger::warn("💧 [EAU] Déclenchement alerte...");
             alerterEau(niveau);
             lastWaterAlertTime = currentTime;
+        } else {
+            Logger::info("💧 [EAU] Cooldown actif, pas d'alerte");
         }
+    } else {
+        Logger::info("💧 [EAU] Pas d'eau détectée (niveau trop bas)");
     }
 }
 
@@ -624,22 +642,11 @@ void ObstacleDetector::alerterEau(int niveau) {
         Logger::warn("🔊 [EAU] Alerte NIVEAU ÉLEVÉ (2 bips)");
         
         // Démarre la machine à états non-bloquante
-        digitalWrite(BUZZER_2_PIN, HIGH);
+        buzzer2On();
         waterAlertState = WATER_ALERT_BIP1_ON;
         waterAlertLastChange = millis();
         
-
-        
-    } else if (niveau > WATER_THRESHOLD_LOW) {
-        Logger::info("🔊 [EAU] Alerte niveau moyen (1 bip)");
-        
-        // Un seul bip court
-        digitalWrite(BUZZER_2_PIN, HIGH);
-        waterAlertState = WATER_ALERT_SINGLE_BIP;
-        waterAlertLastChange = millis();
-        
-
-    }
+    } 
 }
 
 // =======================================================

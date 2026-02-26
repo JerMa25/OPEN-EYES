@@ -4,29 +4,41 @@
 #include "GSMEmergency.h"
 #include "Logger.h"
 #include "Config.h"
+#include <esp_task_wdt.h> 
 
 // Constructeur : initialise les références
 GSMEmergency::GSMEmergency(HardwareSerial& serial, GPSTracker& gpsRef)
     : sim808(serial), gps(gpsRef) {}
 
-// Initialise le module GSM et l'EEPROM
 void GSMEmergency::init() {
     Logger::info("Initialisation GSM");
     
-    // Initialise l'EEPROM pour stocker les contacts
+    // Initialise l'EEPROM
     initialiserEEPROM();
+    
+    // ✅ RESET WATCHDOG
+    esp_task_wdt_reset();
     
     // Configure le module en mode texte pour les SMS
     sim808.println("AT+CMGF=1");
     delay(500);
     
+    // ✅ RESET WATCHDOG
+    esp_task_wdt_reset();
+    
     // Active les notifications de SMS entrants
     sim808.println("AT+CNMI=2,2,0,0,0");
     delay(500);
     
+    // ✅ RESET WATCHDOG
+    esp_task_wdt_reset();
+    
     // Active le GPS du SIM808
     sim808.println("AT+CGPSPWR=1");
     delay(1000);
+    
+    // ✅ RESET WATCHDOG
+    esp_task_wdt_reset();
     
     ready = true;
     Logger::info("GSM prêt - Contacts: " + String(getNombreContacts()));

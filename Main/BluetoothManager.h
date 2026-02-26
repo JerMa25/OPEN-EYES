@@ -83,6 +83,8 @@ class BluetoothManager : public IModule {
     unsigned long lastSendTime = 0;       // Dernier envoi GPS
     unsigned long lastImuTime = 0;        // Dernier envoi IMU
     String deviceName = "Canne_Intelligente"; // Nom par défaut
+
+    void sendIMUDataAuto();
     
     // Classe interne pour gérer les callbacks de connexion
     class ServerCallbacks : public BLEServerCallbacks {
