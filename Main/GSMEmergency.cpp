@@ -12,36 +12,76 @@ GSMEmergency::GSMEmergency(HardwareSerial& serial, GPSTracker& gpsRef)
 
 void GSMEmergency::init() {
     Logger::info("Initialisation GSM");
-    
+
     // Initialise l'EEPROM
     initialiserEEPROM();
-    
-    // ✅ RESET WATCHDOG
+
+    // ── Étape 1 : Tester d'abord si le SIM808 répond déjà ─────────────────
+    // IMPORTANT : PWRKEY fonctionne en TOGGLE sur le SIM808.
+    //   - Si module ÉTEINT → impulsion l'ALLUME
+    //   - Si module ALLUMÉ → impulsion l'ÉTEINT
+    // Il faut donc tester AT avant d'envoyer l'impulsion !
+    pinMode(SIM808_PWR, OUTPUT);
+    digitalWrite(SIM808_PWR, HIGH); // état de repos (inactif)
+
+    Logger::info("[GSM] Test présence SIM808...");
+
+    // Vide le buffer avant de tester
+    while (sim808.available()) sim808.read();
+
+    sim808.println("AT");
+    bool dejaPret = waitFor("OK", 3000);
+
+    if (!dejaPret) {
+        // Le module ne répond pas → envoyer l'impulsion PWRKEY pour le démarrer
+        Logger::info("[GSM] Pas de réponse, envoi impulsion PWRKEY...");
+        digitalWrite(SIM808_PWR, LOW);
+        delay(1500); // maintien > 1s requis par le SIM808
+        digitalWrite(SIM808_PWR, HIGH);
+        Logger::info("[GSM] Impulsion envoyée, attente démarrage (5s)...");
+        esp_task_wdt_reset();
+        delay(5000); // délai de démarrage du module
+        esp_task_wdt_reset();
+
+        // Vide le buffer des messages de démarrage
+        while (sim808.available()) sim808.read();
+
+        // Re-test AT
+        sim808.println("AT");
+        if (!waitFor("OK", 5000)) {
+            Logger::error("[GSM] SIM808 ne répond toujours pas ! Vérifier câblage TX/RX et alimentation.");
+            ready = false;
+            return;
+        }
+    }
+
+    Logger::info("[GSM] SIM808 répond OK");
     esp_task_wdt_reset();
-    
-    // Configure le module en mode texte pour les SMS
+
+    // ── Étape 2 : Mode SMS texte ──────────────────────────────────────────
+    while (sim808.available()) sim808.read(); // flush buffer avant chaque commande
     sim808.println("AT+CMGF=1");
-    delay(500);
-    
-    // ✅ RESET WATCHDOG
+    if (!waitFor("OK", 2000)) {
+        Logger::error("[GSM] AT+CMGF=1 échoué");
+        ready = false;
+        return;
+    }
     esp_task_wdt_reset();
-    
-    // Active les notifications de SMS entrants
+
+    // ── Étape 3 : Notifications SMS entrants ─────────────────────────────
+    while (sim808.available()) sim808.read();
     sim808.println("AT+CNMI=2,2,0,0,0");
-    delay(500);
-    
-    // ✅ RESET WATCHDOG
+    waitFor("OK", 2000);
     esp_task_wdt_reset();
-    
-    // Active le GPS du SIM808
+
+    // ── Étape 4 : Active le GPS interne du SIM808 ────────────────────────
+    while (sim808.available()) sim808.read();
     sim808.println("AT+CGPSPWR=1");
-    delay(1000);
-    
-    // ✅ RESET WATCHDOG
+    waitFor("OK", 2000);
     esp_task_wdt_reset();
-    
+
     ready = true;
-    Logger::info("GSM prêt - Contacts: " + String(getNombreContacts()));
+    Logger::info("[GSM] Prêt - Contacts: " + String(getNombreContacts()));
 }
 
 // Initialise l'EEPROM
@@ -340,8 +380,6 @@ void GSMEmergency::sendSOS() {
 
     // 2) Tous les contacts EEPROM (donc ton tel test)
     sendAlertToAll(msg);
-     if (ok) Logger::warn("[SOS] ✅ Message SOS envoyé à " + String(NUMERO_URGENCE));
-    else    Logger::error("[SOS] ❌ Échec envoi SOS à " + String(NUMERO_URGENCE));
 }
 
 // Envoie une alerte à TOUS les contacts enregistrés en EEPROM
