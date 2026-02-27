@@ -258,11 +258,11 @@ void gererBoutonSOS() {
         appuiLong = false;
         Logger::info("[BTN] Appui détecté (début)");
     }
+            unsigned long duree = maintenant - debutAppui;
+
 
     //appui long
     if (etatBouton == LOW && debutAppui > 0) {
-        unsigned long duree = maintenant - debutAppui;
-
         static unsigned long lastTickLog = 0;
         if (maintenant - lastTickLog > 500) {
             lastTickLog = maintenant;
@@ -273,7 +273,7 @@ void gererBoutonSOS() {
     if (duree >= DELAI_APPUI_LONG && !appuiLong) {
         Logger::warn("🆘 [BTN] APPUI LONG DÉTECTÉ (" + String(duree) + "ms) -> sendSOS()");
         gsmModule.sendSOS();
-        Logger::warn("🆘 [BTN] sendSOS() déclenché (attente résultat SIM808 dans logs)")
+        Logger::warn("🆘 [BTN] sendSOS() déclenché (attente résultat SIM808 dans logs)");
         appuiLong = true;
     }
     
