@@ -34,21 +34,40 @@ void GPSAssistance::initMPU() {
 
 // ✅ AJOUTER
 void GPSAssistance::initMagnetometer() {
-    // Active le bypass pour accès direct au magnétomètre
+
+    // Activer bypass I2C
     Wire.beginTransmission(MPU_ADDR);
     Wire.write(0x37);  // INT_PIN_CFG
-    Wire.write(0x02);  // Bypass enable
+    Wire.write(0x02);  // BYPASS_EN
     Wire.endTransmission();
     delay(10);
-    
-    // Configure le magnétomètre AK8963
+
+    // Vérifier présence AK8963
     Wire.beginTransmission(0x0C);
-    Wire.write(0x0A);  // Control register
-    Wire.write(0x16);  // Mode continu 100Hz, 16-bit
+    byte error = Wire.endTransmission();
+
+    if (error == 0) {
+        Logger::info("✅ AK8963 détecté");
+    } else {
+        Logger::info("❌ AK8963 NON détecté");
+        return;
+    }
+
+    // Mettre en mode power-down d'abord (important)
+    Wire.beginTransmission(0x0C);
+    Wire.write(0x0A);
+    Wire.write(0x00);
     Wire.endTransmission();
     delay(10);
-    
-    Logger::info("✅ [IMU] Magnétomètre AK8963 configuré");
+
+    // Mode continu 100Hz, 16-bit
+    Wire.beginTransmission(0x0C);
+    Wire.write(0x0A);
+    Wire.write(0x16);
+    Wire.endTransmission();
+    delay(10);
+
+    Logger::info("✅ Magnétomètre configuré en 100Hz 16-bit");
 }
 
 void GPSAssistance::update() {
@@ -84,23 +103,43 @@ void GPSAssistance::readIMU() {
 
 // ✅ AJOUTER
 void GPSAssistance::readMagnetometer() {
+
+    // Vérifier data ready
+    Wire.beginTransmission(0x0C);
+    Wire.write(0x02);
+    Wire.endTransmission(false);
+    Wire.requestFrom(0x0C, 1);
+
+    if (!(Wire.read() & 0x01)) {
+        return; // pas de nouvelle donnée
+    }
+
     Wire.beginTransmission(0x0C);
     Wire.write(0x03);
     Wire.endTransmission(false);
-    Wire.requestFrom(0x0C, 6);
-    
-    if (Wire.available() >= 6) {
+    Wire.requestFrom(0x0C, 7);
+
+    if (Wire.available() >= 7) {
+
         int16_t mx = Wire.read() | (Wire.read() << 8);
         int16_t my = Wire.read() | (Wire.read() << 8);
         int16_t mz = Wire.read() | (Wire.read() << 8);
-        
-        // Calcul yaw
-        float heading = atan2(my, mx) * 180.0 / M_PI;
-        
-        if (heading < 0) {
+        Wire.read(); // ST2 (important à lire !)
+
+        // Compensation d'inclinaison
+        float rollRad  = imuData.roll * M_PI / 180.0;
+        float pitchRad = imuData.pitch * M_PI / 180.0;
+
+        float mxComp = mx * cos(pitchRad) + mz * sin(pitchRad);
+        float myComp = mx * sin(rollRad) * sin(pitchRad) +
+                    my * cos(rollRad) -
+                    mz * sin(rollRad) * cos(pitchRad);
+
+        float heading = atan2(myComp, mxComp) * 180.0 / M_PI;
+
+        if (heading < 0)
             heading += 360;
-        }
-        
+
         imuData.yaw = heading;
     }
 }

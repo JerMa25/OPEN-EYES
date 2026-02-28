@@ -43,8 +43,6 @@ class GSMEmergency : public IModule {
     String lireContact(int slot);
     
     // Gestion SMS
-    String readUntil(unsigned long timeoutMs);
-    bool waitFor(const String& token, unsigned long timeoutMs);
     bool sendSMS(const String& number, const String& message);
     void traiterSMSEntrants();
     void traiterCommandeAdmin(const String& sms);

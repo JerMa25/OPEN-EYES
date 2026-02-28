@@ -128,35 +128,35 @@ void setup() {
     gpsTracker.init();
     Logger::info("✅ [SETUP] Module 1 prêt");
     Logger::info("");
-    esp_task_wdt_reset();  // ✅
+    esp_task_wdt_reset();
     
     // Module 2: GSM
     Logger::info("🔄 [SETUP] Init module 2/5...");
     gsmModule.init();
     Logger::info("✅ [SETUP] Module 2 prêt");
     Logger::info("");
-    esp_task_wdt_reset();  // ✅
+    esp_task_wdt_reset();
     
     // Module 3: Obstacles
     Logger::info("🔄 [SETUP] Init module 3/5...");
     obstacleDetector.init();
     Logger::info("✅ [SETUP] Module 3 prêt");
     Logger::info("");
-    esp_task_wdt_reset();  // ✅
+    esp_task_wdt_reset();
     
     // Module 4: IMU
     Logger::info("🔄 [SETUP] Init module 4/5...");
     imuModule.init();
     Logger::info("✅ [SETUP] Module 4 prêt");
     Logger::info("");
-    esp_task_wdt_reset();  // ✅
+    esp_task_wdt_reset();
     
     // Module 5: BLE
     Logger::info("🔄 [SETUP] Init module 5/5...");
     bleManager.init();
     Logger::info("✅ [SETUP] Module 5 prêt");
     Logger::info("");
-    esp_task_wdt_reset();  // ✅
+    esp_task_wdt_reset();
     
     Logger::info("════════════════════════════════════════");
     Logger::info("✅ [SETUP] Tous les modules initialisés");
@@ -223,6 +223,8 @@ void loop() {
     
     static unsigned long lastLedTime = 0;
     static bool ledState = false;
+    static unsigned long lastObstacleBleTime = 0;  // Timer envoi obstacles BLE
+    static unsigned long lastWaterBleTime = 0;      // Timer envoi eau BLE
     unsigned long currentTime = millis();
     
     // Clignotement LED toutes les 10 secondes
@@ -239,7 +241,21 @@ void loop() {
     gsmModule.update();
     obstacleDetector.update();
     imuModule.update();
-    bleManager.update();
+    bleManager.update(); // Gère automatiquement GPS (5s) et IMU (200ms)
+
+    // ===== ENVOI BLE OBSTACLES (toutes les 500ms) =====
+    if (bleManager.isClientConnected() &&
+        currentTime - lastObstacleBleTime >= OBSTACLE_BLE_UPDATE_INTERVAL) {
+        bleManager.sendObstacleData(obstacleDetector.getObstacleData());
+        lastObstacleBleTime = currentTime;
+    }
+
+    // ===== ENVOI BLE CAPTEUR EAU (toutes les 1000ms) =====
+    if (bleManager.isClientConnected() &&
+        currentTime - lastWaterBleTime >= WATER_BLE_UPDATE_INTERVAL) {
+        bleManager.sendWaterSensorData(obstacleDetector.getWaterSensorData());
+        lastWaterBleTime = currentTime;
+    }
     
     // Gestion bouton SOS
     gererBoutonSOS();
@@ -252,38 +268,23 @@ void gererBoutonSOS() {
     int etatBouton = digitalRead(BOUTON_SOS);
     unsigned long maintenant = millis();
     
-    //Début d'appui
     if (etatBouton == LOW && debutAppui == 0) {
         debutAppui = maintenant;
-        appuiLong = false;
-        Logger::info("[BTN] Appui détecté (début)");
-    }
-
-    //appui long
-    if (etatBouton == LOW && debutAppui > 0) {
-        unsigned long duree = maintenant - debutAppui;
-
-        static unsigned long lastTickLog = 0;
-        if (maintenant - lastTickLog > 500) {
-            lastTickLog = maintenant;
-            Logger::info("[BTN] Maintien..." + String(duree) + "ms");
-        }
     }
     
-    if (duree >= DELAI_APPUI_LONG && !appuiLong) {
-        Logger::warn("🆘 [BTN] APPUI LONG DÉTECTÉ (" + String(duree) + "ms) -> sendSOS()");
-        gsmModule.sendSOS();
-        Logger::warn("🆘 [BTN] sendSOS() déclenché (attente résultat SIM808 dans logs)")
-        appuiLong = true;
+    if (etatBouton == LOW && (maintenant - debutAppui >= DELAI_APPUI_LONG)) {
+        if (!appuiLong) {
+            Logger::warn("🆘 APPUI LONG DÉTECTÉ - ALERTE SOS");
+            gsmModule.sendSOS();
+            appuiLong = true;
+        }
     }
     
     if (etatBouton == HIGH && debutAppui > 0) {
         unsigned long dureeAppui = maintenant - debutAppui;
         
-        Logger::info("[BTN] Relâchement (" + String(dureeAppui) + "ms)");
-
         if (dureeAppui < DELAI_APPUI_LONG && !appuiLong) {
-            Logger::info("✅ [BTN] CLIC COURT - Tout va bien");
+            Logger::info("✅ CLIC COURT - Tout va bien");
         }
         
         debutAppui = 0;

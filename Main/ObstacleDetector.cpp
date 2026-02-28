@@ -322,7 +322,8 @@ void ObstacleDetector::updateWaterAlert() {
             
         case WATER_ALERT_BIP1_ON:
             // ✅ Premier bip AIGU (2200 Hz)
-            buzzer1On();  // Tonalité aiguë
+            buzzer1On(); 
+            buzzer2On(); // Tonalité aiguë
             Logger::info("🔊 [EAU] Bip 1 ON (2200 Hz)");
             
             if (currentTime - waterAlertLastChange >= 150) {
@@ -344,12 +345,14 @@ void ObstacleDetector::updateWaterAlert() {
             
         case WATER_ALERT_BIP2_ON:
             // ✅ Deuxième bip PLUS AIGU (2500 Hz)
-            buzzer2On();  // Encore plus aigu
+            buzzer2On();
+            buzzer1On();   // Encore plus aigu
             Logger::info("🔊 [EAU] Bip 2 ON (2500 Hz)");
             
             if (currentTime - waterAlertLastChange >= 150) {
                 waterAlertState = WATER_ALERT_OFF;
                 buzzer2Off();
+                buzzer1Off();
                 waterAlertLastChange = currentTime;
                 Logger::info("🔊 [EAU] Séquence terminée");
             }
@@ -364,6 +367,7 @@ void ObstacleDetector::updateWaterAlert() {
             if (currentTime - waterAlertLastChange >= 300) {
                 waterAlertState = WATER_ALERT_OFF;
                 buzzer2Off();
+                buzzer1Off(); 
                 Logger::info("🔊 [EAU] Bip unique terminé");
             }
             break;
@@ -642,19 +646,11 @@ void ObstacleDetector::alerterEau(int niveau) {
         Logger::warn("🔊 [EAU] Alerte NIVEAU ÉLEVÉ (2 bips)");
         
         // Démarre la machine à états non-bloquante
-        digitalWrite(BUZZER_2_PIN, HIGH);
+        buzzer2On();
         waterAlertState = WATER_ALERT_BIP1_ON;
         waterAlertLastChange = millis();
         
-    } else if (niveau > WATER_THRESHOLD_LOW) {
-        Logger::info("🔊 [EAU] Alerte niveau moyen (1 bip)");
-        
-        // Un seul bip court
-        digitalWrite(BUZZER_2_PIN, HIGH);
-        waterAlertState = WATER_ALERT_SINGLE_BIP;
-        waterAlertLastChange = millis();
-
-    }
+    } 
 }
 
 // =======================================================
