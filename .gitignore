@@ -1,0 +1,95 @@
+# =============================
+# Python / Django
+# =============================
+venv/
+.venv/
+env/
+.env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+*.log
+
+# Django
+*.sqlite3
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static/
+
+# =============================
+# Node.js / Vue.js / Frontend
+# =============================
+node_modules/
+dist/
+.nuxt/
+.output/
+.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+*.local
+
+# =============================
+# Environnement & Secrets
+# =============================
+.env
+.env.*
+!.env.example
+
+# =============================
+# Logs
+# =============================
+logs/
+*.log
+log/
+
+# =============================
+# Éditeurs & IDEs
+# =============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# =============================
+# Tests & Coverage
+# =============================
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# =============================
+# Divers
+# =============================
+*.bak
+*.tmp
+*.orig
