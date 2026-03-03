@@ -66,7 +66,7 @@ Application pour les contacts d'urgence :
 | 8 | OWONA NGUINI Matteo J. |
 | 9 | PANGUI PIANNE Péguy |
 | 10 | TASSE WEMBE Jerry Arole |
-| 11 | TCHAMI MBIAKOUP Jerry Martial  **Chef de Projet** |
+| 11 | TCHAMI MBIAKOUP Jerry Martial  **(Chef de Projet)** |
 | 12 | TCHAPET NGAMINI Rolain |
 
 ---
