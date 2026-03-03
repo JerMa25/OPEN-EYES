@@ -56,18 +56,18 @@ Application pour les contacts d'urgence :
 
 | # | Nom |
 |---|-----|
-| 1 | **TCHAMI MBIAKOUP Jerry Martial**  **Chef de Projet** |
-| 2 | NJEMPOU YAMPEN Rachida R. |
-| 3 | ELA FOE Frédéric T. |
-| 4 | NGAPGOU TSAFACK Farelle |
-| 5 | HEUDEP DJANDJA Brian B. |
-| 6 | PANGUI PIANNE Péguy |
+| 1 | ELA FOE Frédéric T. |
+| 2 | FONGANG NDE Bryan |
+| 3 | HEUDEP DJANDJA Brian B. |
+| 4 | NGADJOU TALLA Aurore |
+| 5 | NGAPGOU TSAFACK Farelle |
+| 6 | NJEMPOU YAMPEN Rachida R. |
 | 7 | NZUNGANG MBOUM Freddy |
-| 8 | NGADJOU TALLA Aurore |
-| 9 | OWONA NGUINI Matteo J. |
+| 8 | OWONA NGUINI Matteo J. |
+| 9 | PANGUI PIANNE Péguy |
 | 10 | TASSE WEMBE Jerry Arole |
-| 11 | TCHAPET NGAMINI Rolain |
-| 12 | FONGANG NDE Bryan |
+| 11 | TCHAMI MBIAKOUP Jerry Martial  **Chef de Projet** |
+| 12 | TCHAPET NGAMINI Rolain |
 
 ---
 
