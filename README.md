@@ -54,20 +54,20 @@ Application pour les contacts d'urgence :
 
 ## 🎓 Équipe de Développement
 
-| # | Nom | Rôle |
-|---|-----|------|
-| 1 | **TCHAMI MBIAKOUP Jerry Martial** | 👑 **Chef de Projet** |
-| 2 | NJEMPOU YAMPEN Rachida R. | Développement Firmware |
-| 3 | ELA FOE Frédéric T. | Hardware & PCB |
-| 4 | NGAPGOU TSAFACK Farelle | Navigation App |
-| 5 | HEUDEP DJANDJA Brian B. | Emergency Backend |
-| 6 | PANGUI PIANNE Péguy | Emergency Frontend |
-| 7 | NZUNGANG MBOUM Freddy | Intégration & Tests |
-| 8 | NGADJOU TALLA Aurore | UX Design |
-| 9 | OWONA NGUINI Matteo J. | Communication BLE/GPS |
-| 10 | TASSE WEMBE Jerry Arole | Module GSM |
-| 11 | TCHAPET NGAMINI Rolain | Assemblage Mécanique |
-| 12 | FONGANG NDE Bryan | Documentation |
+| # | Nom |
+|---|-----|
+| 1 | **TCHAMI MBIAKOUP Jerry Martial**  **Chef de Projet** |
+| 2 | NJEMPOU YAMPEN Rachida R. |
+| 3 | ELA FOE Frédéric T. |
+| 4 | NGAPGOU TSAFACK Farelle |
+| 5 | HEUDEP DJANDJA Brian B. |
+| 6 | PANGUI PIANNE Péguy |
+| 7 | NZUNGANG MBOUM Freddy |
+| 8 | NGADJOU TALLA Aurore |
+| 9 | OWONA NGUINI Matteo J. |
+| 10 | TASSE WEMBE Jerry Arole |
+| 11 | TCHAPET NGAMINI Rolain |
+| 12 | FONGANG NDE Bryan |
 
 ---
 
